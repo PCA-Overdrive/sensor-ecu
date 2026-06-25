@@ -3,6 +3,7 @@
 #include "tc375_icm20948_port.h"
 #include "App_CalibStorage.h"
 #include "App_Led2.h"
+#include "App_Can.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <math.h>
@@ -291,6 +292,7 @@ static void updateEulerFromQuat6(const icm_20948_DMP_data_t *data)
         }
 
         g_out.filteredRelYawDeg = g_filteredRelYaw;
+        CanApp_SetImuYaw((sint16)g_out.filteredRelYawDeg);
     }
 }
 

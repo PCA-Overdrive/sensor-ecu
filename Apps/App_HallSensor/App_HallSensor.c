@@ -65,7 +65,7 @@
 #define HALL_CAN_SPEED_SCALE_DIVIDER        (10U)
 #define HALL_CAN_SPEED_MAX                  (0xFFU)
 
-#define HALL_DEBUG_ENABLE                   (1U)
+#define HALL_DEBUG_ENABLE                   (0U)
 #define HALL_DEBUG_PRINT_PERIOD_MS          (100U)
 
 /*********************************************************************************************************************/
