@@ -17,6 +17,5 @@ void CanApp_Init(void);
 void CanApp_Run(void *arg);
 
 void CanApp_SetImuYaw(sint16 imuYaw);
-void CanApp_SetVehicleSpeed(uint8 vehicleSpeed);
 
 #endif /* __APP_CAN_H__ */
