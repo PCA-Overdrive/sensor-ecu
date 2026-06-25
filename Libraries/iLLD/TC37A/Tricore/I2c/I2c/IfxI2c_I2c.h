@@ -3,8 +3,8 @@
  * \brief I2C I2C details
  * \ingroup IfxLld_I2c
  *
- * \version iLLD_1_0_1_16_0_1
- * \copyright Copyright (c) 2023 Infineon Technologies AG. All rights reserved.
+ * \version iLLD_1_20_0
+ * \copyright Copyright (c) 2024 Infineon Technologies AG. All rights reserved.
  *
  *
  *
@@ -109,7 +109,6 @@
  *
  *     // set device specifig values.
  *     i2cDeviceConfig.deviceAddress = 0xa0;  // 8 bit device address
- *     i2cDeviceConfig.enableRepeatedStart = TRUE; //  TRUE: Repeated start mode is enabled. FALSE: Default (Stop is generated at the end of read/write)
  *     // initialize the i2c device handle
  *     IfxI2c_I2c_initDevice(&i2cDev, &i2cDeviceConfig);
  * \endcode
@@ -133,7 +132,7 @@
  *      uint8 size = 5; // 5 bytes to transmit to i2cDev (data and internal address)
  *
  *      // write data to device as soon as it is ready
- *      while(IfxI2c_I2c_write(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
+ *      while(IfxI2c_I2c_write2(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
  * \endcode
  *
  * \subsection IfxLld_I2c_I2c_Read Read
@@ -146,12 +145,12 @@
  *     data[0] = addr >> 8; // High byte
  *     data[1] = (uint8)addr; // Low byte
  *     size = 2;
- *     while(IfxI2c_I2c_write(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
+ *     while(IfxI2c_I2c_write2(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
  *
  *     size = 8; // 8 bytes to read
  *
  *     // read device data to data array
- *     while(IfxI2c_I2c_read(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
+ *     while(IfxI2c_I2c_read2(&i2cDev, data, size) == IfxI2c_I2c_Status_nak);
  * \endcode
  *
  * \subsection IfxLld_I2c_I2c_ACK Acknowledge Polling
@@ -160,13 +159,13 @@
  * By using write operations:
  * \code
  *     // size = 0;
- *     while(IfxI2c_I2c_write(&i2cDev, data, 0) == IfxI2c_I2c_Status_nak)); // where data is just a dummy pointer
+ *     while(IfxI2c_I2c_write2(&i2cDev, data, 0) == IfxI2c_I2c_Status_nak)); // where data is just a dummy pointer
  * \endcode
  *
  * By using read operations:
  * \code
  *     // size = 0;
- *     while(IfxI2c_I2c_read(&i2cDev, data, 0) == IfxI2c_I2c_Status_nak)); // where data is just a dummy pointer
+ *     while(IfxI2c_I2c_read2(&i2cDev, data, 0) == IfxI2c_I2c_Status_nak)); // where data is just a dummy pointer
  * \endcode
  *
  * \subsection IfxLld_I2c_I2c_Interrupts Interrupts usage
@@ -299,10 +298,13 @@ typedef struct
  */
 typedef struct
 {
-    Ifx_I2C               *i2c;            /**< \brief Module Pointer */
-    float32                baudrate;       /**< \brief Baudrate */
-    IFX_CONST IfxI2c_Pins *pins;           /**< \brief Pins */
-    IfxI2c_Mode            mode;           /**< \brief Speed Mode */
+    Ifx_I2C               *i2c;                  /**< \brief Module Pointer */
+    float32                baudrate;             /**< \brief Baudrate */
+    IFX_CONST IfxI2c_Pins *pins;                 /**< \brief Pins */
+    IfxI2c_Mode            mode;                 /**< \brief Speed Mode */
+    IfxI2c_MasterNotSlave  peripheralMode;       /**< \brief master/not slave */
+    IfxI2c_Config          addrFifoCfg;          /**< \brief addr and fifo cfg */
+    IfxI2c_TimingConfig    *timingCfg;			 /**< \brief timing cfg Pointer*/
 } IfxI2c_I2c_Config;
 
 /** \brief Structure with slave device data
@@ -320,11 +322,11 @@ typedef struct
  */
 typedef struct
 {
-    IfxI2c_I2c        *i2c;                       /**< \brief Module Pointer */
-    uint16             deviceAddress;             /**< \brief the slave device's address */
-    IfxI2c_AddressMode addressMode;               /**< \brief slave device's address (7 or 10 bits) */
-    IfxI2c_Mode        speedMode;                 /**< \brief slave device in Standard/Fast or High Speed mode. */
-    boolean            enableRepeatedStart;       /**< \brief TRUE: Stop is not generated FALSE: Default (Stop is generated at the end of read/write) */
+    IfxI2c_I2c        *i2c;                 /**< \brief Module Pointer */
+    uint16             deviceAddress;       /**< \brief the slave device's address */
+    IfxI2c_AddressMode addressMode;         /**< \brief slave device's address (7 or 10 bits) */
+    IfxI2c_Mode        speedMode;           /**< \brief slave device in Standard/Fast or High Speed mode. */
+    boolean            enableRepeatedStart; /**< \brief TRUE: Stop is not generated FALSE: Default (Stop is generated at the end of read/write) */
 } IfxI2c_I2c_deviceConfig;
 
 /** \} */
@@ -336,59 +338,121 @@ typedef struct
 /*-------------------------Global Function Prototypes-------------------------*/
 /******************************************************************************/
 
-/** \brief returns the baudrate of SCL
- * \param i2c i2c Handler
+/**
+ * \brief Returns the current Baudrate of the I2C bus in Hz.
+ *
+ * \param[in] i2c Pointer to the I2C handler.
+ *
+ * \retval float32 The current Baudrate of the I2C bus in Hz.
  */
 IFX_EXTERN float32 IfxI2c_I2c_getBaudrate(IfxI2c_I2c *i2c);
 
-/** \brief Fills the config structure with default values
- * \param config Structure to configure the Module
- * \param i2c Module address
- * \return None
+/**
+ * \brief Initializes the I2C module configuration structure with default values.
+ *
+ * \param[inout] config Pointer to the I2C module configuration structure to be initialized.
+ * \param[in]    i2c    Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_I2c_initConfig(IfxI2c_I2c_Config *config, Ifx_I2C *i2c);
 
-/** \brief Initializes the device Handler
- * \param i2cDevice I2c device Handler
- * \param i2cDeviceConfig Structure to configure the device's data structure
- * \return None
+/**
+ * \brief Initializes the I2C Device handler with the provided configuration.
  *
- * A coding example can be found in \ref IfxLld_I2c_I2c_Usage
+ * \param[inout] i2cDevice 	     Pointer to the I2C Device handler to be initialized.
+ * \param[in] 	 i2cDeviceConfig Pointer to the configuration structure containing parameters such as slave Device address, address mode, speed mode,
+ *                               and repeated start enablement.
  *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_I2c_initDevice(IfxI2c_I2c_Device *i2cDevice, const IfxI2c_I2c_deviceConfig *i2cDeviceConfig);
 
-/** \brief Fills the config structure of the slave device with default values.
- * \param i2cDeviceConfig Structure to configure the device's data structure
- * \param i2c Handler
- * \return None
+/**
+ * \brief Initializes the I2C Device Configuration structure with default values.
+ *
+ * \param[inout] i2cDeviceConfig Pointer to the I2C Device Configuration structure to be initialized.
+ * \param[in]    i2c 			 Pointer to the I2C handler structure, which contains module specific
+ *                			     pointers and status information.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_I2c_initDeviceConfig(IfxI2c_I2c_deviceConfig *i2cDeviceConfig, IfxI2c_I2c *i2c);
 
-/** \brief Initializes the Module
- * \param i2c Handler
- * \param config Configuration structure
- * \return None
+/**
+ * \brief Initializes the I2C Module with the provided configuration.
  *
- * A coding example can be found in \ref IfxLld_I2c_I2c_Usage
+ * \param[inout] i2c    Handler for the I2C Module. This structure contains module specific data, including the module pointer,
+ * 				        bus status, operation status, and baudrate.
+ * \param[in]    config Configuration structure that defines the operational parameters for the I2C Module. This includes settings
+ *                      such as baudrate, pin assignments, operation mode, and timing configurations.
  *
+ * \retval None
+ *
+ * \note A coding example can be found in \ref IfxLld_I2c_I2c_Usage
  */
 IFX_EXTERN void IfxI2c_I2c_initModule(IfxI2c_I2c *i2c, const IfxI2c_I2c_Config *config);
-
-/** \brief reads the I2c device
- *
- * A coding example can be found in \ref IfxLld_I2c_I2c_Usage
- *
- */
-IFX_EXTERN IfxI2c_I2c_Status IfxI2c_I2c_read(IfxI2c_I2c_Device *i2cDevice, volatile uint8 *data, Ifx_SizeT size);
-
-/** \brief writes to the I2c device
- *
- * A coding example can be found in \ref IfxLld_I2c_I2c_Usage
- *
- */
-IFX_EXTERN IfxI2c_I2c_Status IfxI2c_I2c_write(IfxI2c_I2c_Device *i2cDevice, volatile uint8 *data, Ifx_SizeT size);
-
 /** \} */
 
+/******************************************************************************/
+/*-------------------------Global Function Prototypes-------------------------*/
+/******************************************************************************/
+
+/**
+ * \brief Reads data from an I2C Device.
+ *
+ * \param[inout] i2cDevice Handler for the I2C Device, containing configuration and address information.
+ * \param[inout] data 	   Pointer to the buffer where the read data will be stored.
+ * \param[in]    size 	   Number of bytes to read from the I2C Device.
+ *
+ * \retval IfxI2c_I2c_Status Status indicating the success or failure of the read operation.
+ *
+ * \note A coding example can be found in \ref IfxLld_I2c_I2c_Usage.
+ *       IfxI2c_I2c_read2 is the newly designed API which support I2C RESTART mode.
+ */
+IFX_EXTERN IfxI2c_I2c_Status IfxI2c_I2c_read2(IfxI2c_I2c_Device *i2cDevice, volatile uint8 *data, Ifx_SizeT size);
+
+/**
+ * \brief Writes data to an I2C device with support for RESTART mode.
+ *
+ * \param[inout] i2cDevice Handler for the I2C device.
+ * \param[in]    data 	   Pointer to the data buffer to be written to the I2C device
+ * \param[in]    size      Size of the data to be written.
+ *
+ * \retval IfxI2c_I2c_Status Status of the write operation.
+ * 						     (\ref IfxI2c_I2c_Status)
+ * 							 - IfxI2c_I2c_Status_ok    		Everything is ok
+ * 						     - IfxI2c_I2c_Status_nak   		Received NAK
+ * 							 - IfxI2c_I2c_Status_al			Arbitration Lost
+ * 							 - IfxI2c_I2c_Status_busNotFree Bus is not free
+ * 							 - IfxI2c_I2c_Status_error		Error
+ * 
+ * \note IfxI2c_I2c_write2 is the newly designed API which support I2C RESTART mode.
+ */
+IFX_EXTERN IfxI2c_I2c_Status IfxI2c_I2c_write2(IfxI2c_I2c_Device *i2cDevice, volatile uint8 *data, Ifx_SizeT size);
+
+/**
+ * \brief Switches the I2C interface to high-speed mode.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval IfxI2c_I2c_Status Status of the operation
+ * 							 (\ref IfxI2c_I2c_Status)
+ * 							 - IfxI2c_I2c_Status_ok    		Everything is ok
+ * 							 - IfxI2c_I2c_Status_nak   		Received NAK
+ * 							 - IfxI2c_I2c_Status_al			Arbitration Lost
+ * 							 - IfxI2c_I2c_Status_busNotFree Bus is not free
+ * 							 - IfxI2c_I2c_Status_error		Error
+ */
+IFX_EXTERN IfxI2c_I2c_Status IfxI2c_I2c_switch_to_highspeed(Ifx_I2C *i2c);
+
+/**
+ * \brief Enables the interrupt sources for the I2C module.
+ *
+ * \param[in] i2cSFR Pointer to the I2C SFR (Special Function Register) structure. This structure contains the registers and bitfields necessary
+ *                   for controlling and monitoring the I2C peripheral.
+ *
+ * \retval None
+ */
+IFX_EXTERN void IfxI2c_enableInterruptSources(Ifx_I2C *i2cSFR);
 #endif /* IFXI2C_I2C_H */

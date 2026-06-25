@@ -38,11 +38,16 @@
 #include "IfxCpu.h"
 #include "IfxScuWdt.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "Apps/App_Can/App_Can.h"
 #include "Apps/App_SchedulingStatus/App_SchedulingStatus.h"
 #include "Apps/App_Ultrasonic/App_Ultrasonic.h"
-#include "FreeRTOS.h"
-#include "task.h"
+#include "Apps/App_IMU/App_IMU.h"
+#include "APPS/App_Debug/App_Debug.h"
+#include "Apps/App_Button/App_Button.h"
+#include "Apps/App_Led2/App_Led2.h"
 
 IFX_ALIGN(4) IfxCpu_syncEvent g_cpuSyncEvent = 0;
 
@@ -59,15 +64,19 @@ void core0_main(void)
     /* Wait for CPU sync event */
     IfxCpu_emitEvent(&g_cpuSyncEvent);
     IfxCpu_waitEvent(&g_cpuSyncEvent, 1);
+
+    DebugApp_init();
+    AppLed2_init();
+    DebugLog_printf("[BOOT] TC375 FreeRTOS start\r\n");    
     
-    /* Create scheduling status app task */
+    /* Create task */
     xTaskCreate(SchedulingStatusApp_Run, "APP STATUS", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
-
-    /* Create CAN app task */
     xTaskCreate(CanApp_Run, "APP CAN", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
-
-    /* Create ultrasonic app task */
     xTaskCreate(UltrasonicApp_Run, "APP ULTRASONIC", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
+    xTaskCreate(task_app_led2, "APP LED2", TASK_STACK_LED2, NULL, TASK_PRIO_LED2, NULL);
+    xTaskCreate(task_app_button, "APP BUTTON", TASK_STACK_BUTTON, NULL, TASK_PRIO_BUTTON, NULL);
+    xTaskCreate(task_app_debug, "APP DEBUG", TASK_STACK_DEBUG, NULL, TASK_PRIO_DEBUG, NULL);
+    xTaskCreate(task_app_imu, "APP IMU", TASK_STACK_IMU, NULL, TASK_PRIO_IMU, NULL);
 
     /* Start the scheduler */
     vTaskStartScheduler();

@@ -2,8 +2,8 @@
  * \file IfxI2c.c
  * \brief I2C  basic functionality
  *
- * \version iLLD_1_0_1_16_0_1
- * \copyright Copyright (c) 2023 Infineon Technologies AG. All rights reserved.
+ * \version iLLD_1_20_0
+ * \copyright Copyright (c) 2024 Infineon Technologies AG. All rights reserved.
  *
  *
  *
@@ -45,6 +45,14 @@
 /*----------------------------------Includes----------------------------------*/
 /******************************************************************************/
 
+#include "Ifx_Cfg.h"
+#if defined (__TASKING__)
+#pragma warning 508				/* To suppress empty file warning */
+#endif
+#if defined (__ghs__)
+#pragma diag_suppress 96		/* To suppress empty file warning */
+#endif
+#if !defined(DEVICE_TC33XED) && !defined(DEVICE_TC33X) 
 #include "IfxI2c.h"
 
 /******************************************************************************/
@@ -53,26 +61,27 @@
 
 void IfxI2c_configureAsMaster(Ifx_I2C *i2c)
 {
-    // enter config Mode
+    /* Enter config Mode */
     IfxI2c_stop(i2c);
 
     i2c->ADDRCFG.U      = 0;
-    i2c->ADDRCFG.B.MNS  = 1; // master mode
-    i2c->ADDRCFG.B.SONA = 0; // don't release the bus on NACK
-    i2c->ADDRCFG.B.SOPE = 0; // after transfer go into master restart state
-    i2c->ADDRCFG.B.TBAM = 0; // 7 bit address mode
+    i2c->ADDRCFG.B.MNS  = 1; /* Master mode */
+    i2c->ADDRCFG.B.SONA = 0; /* Don't release the bus on NACK */
+    i2c->ADDRCFG.B.SOPE = 0; /* After transfer go into master restart state */
+    i2c->ADDRCFG.B.TBAM = 0; /* 7 bit address mode */
     i2c->FIFOCFG.U      = 0;
-    i2c->FIFOCFG.B.TXFC = 1; // FIFO as flow controller
-    i2c->FIFOCFG.B.RXFC = 1; // FIFO as flow controller
-    i2c->FIFOCFG.B.TXBS = 0; // Burst size 1 word
-    i2c->FIFOCFG.B.RXBS = 0; // Burst size 1 word
-    i2c->FIFOCFG.B.TXFA = 0; // fifo is byte aligned
-    i2c->FIFOCFG.B.RXFA = 0; // fifo is byte aligned
+    i2c->FIFOCFG.B.TXFC = 1; /* FIFO as flow controller */
+    i2c->FIFOCFG.B.RXFC = 1; /* FIFO as flow controller */
+    i2c->FIFOCFG.B.TXBS = 0; /* Burst size 1 word */
+    i2c->FIFOCFG.B.RXBS = 0; /* Burst size 1 word */
+    i2c->FIFOCFG.B.TXFA = 0; /* FIFO is byte aligned */
+    i2c->FIFOCFG.B.RXFA = 0; /* FIFO is byte aligned */
 }
 
 
 void IfxI2c_disableModule(Ifx_I2C *i2c)
 {
+    /* Clear endinit protection */
     uint16 pwd = IfxScuWdt_getCpuWatchdogPassword();
 
     IfxScuWdt_clearCpuEndinit(pwd);
@@ -82,6 +91,7 @@ void IfxI2c_disableModule(Ifx_I2C *i2c)
     while (i2c->CLC.B.DISS == 0)
     {}
 
+    /* Set the endinit protection again */
     IfxScuWdt_setCpuEndinit(pwd);
 }
 
@@ -106,6 +116,7 @@ void IfxI2c_enableErrorInterrupt(Ifx_I2C *i2c, IfxSrc_Tos typeOfService, uint16 
 
 void IfxI2c_enableModule(Ifx_I2C *i2c)
 {
+    /* Clear endinit protection */
     uint16 pwd = IfxScuWdt_getCpuWatchdogPassword();
 
     IfxScuWdt_clearCpuEndinit(pwd);
@@ -124,11 +135,12 @@ void IfxI2c_enableModule(Ifx_I2C *i2c)
     while (i2c->CLC1.B.DISS == 1U)
     {}
 
-    // disable all interrupts
+    /* Disable all interrupts */
     i2c->ERRIRQSM.U = 0x00;
     i2c->PIRQSM.U   = 0x00;
     i2c->IMSC.U     = 0x00;
 
+    /* Set the endinit protection again */
     IfxScuWdt_setCpuEndinit(pwd);
 }
 
@@ -210,18 +222,18 @@ void IfxI2c_initSclSdaPin(const IfxI2c_Scl_InOut *scl, const IfxI2c_Sda_InOut *s
     IfxPort_setPinModeOutput(sda->pin.port, sda->pin.pinIndex, mode, sda->outSelect);
     IfxPort_setPinPadDriver(scl->pin.port, scl->pin.pinIndex, padDriver);
     IfxPort_setPinPadDriver(sda->pin.port, sda->pin.pinIndex, padDriver);
-    IfxI2c_setPinSelection(scl->module, (IfxI2c_PinSelect)scl->inSelect); // note: uses the same PISEL register like SDA
+    IfxI2c_setPinSelection(scl->module, (IfxI2c_PinSelect)scl->inSelect); /* Note: uses the same PISEL register like SDA */
 }
 
 
 void IfxI2c_releaseBus(Ifx_I2C *i2c)
 {
-    // only set the set end of transmisson bit if bus is not free
+    /* Only set the set end of transmisson bit if bus is not free */
     if (i2c->BUSSTAT.B.BS != IfxI2c_BusStatus_idle)
     {
         i2c->ENDDCTRL.B.SETEND = 1;
 
-        // wait until bus is free
+        /* Wait until bus is free */
         while (IfxI2c_getProtocolInterruptSourceStatus(i2c, IfxI2c_ProtocolInterruptSource_transmissionEnd) == FALSE)
         {}
 
@@ -232,32 +244,33 @@ void IfxI2c_releaseBus(Ifx_I2C *i2c)
 
 void IfxI2c_resetFifo(Ifx_I2C *i2c)
 {
-    /* reset FIFO */
-    i2c->FIFOCFG.U      = 0x0;
-    i2c->FIFOCFG.B.TXFC = 0U;
-    i2c->FIFOCFG.B.RXFC = 0U;
-    i2c->FIFOCFG.B.TXBS = 0U;
-    i2c->FIFOCFG.B.RXBS = 0U;
-    i2c->FIFOCFG.B.TXFA = 0U;
-    i2c->FIFOCFG.B.RXFA = 0U;
+    /* Reset FIFO */
+    i2c->FIFOCFG.U = 0x0;
 }
 
 
 void IfxI2c_resetModule(Ifx_I2C *i2c)
 {
+    /* Clear endinit protection */
     uint16 passwd = IfxScuWdt_getCpuWatchdogPassword();
 
     IfxScuWdt_clearCpuEndinit(passwd);
-    i2c->KRST0.B.RST = 1;           /* Only if both Kernel reset bits are set a reset is executed */
+    /* Only if both Kernel reset bits are set a reset is executed */
+    i2c->KRST0.B.RST = 1;           
     i2c->KRST1.B.RST = 1;
+    /* Set the endinit protection again*/
     IfxScuWdt_setCpuEndinit(passwd);
 
-    while (0 == i2c->KRST0.B.RSTSTAT)   /* Wait until reset is executed */
+    /* Wait until reset is executed */
+    while (0 == i2c->KRST0.B.RSTSTAT)   
 
     {}
 
+    /* Clear endinit protection */
     IfxScuWdt_clearCpuEndinit(passwd);
-    i2c->KRSTCLR.B.CLR = 1;         /* Clear Kernel reset status bit */
+    /* Clear Kernel reset status bit */
+    i2c->KRSTCLR.B.CLR = 1;         
+    /* Set the endinit protection again */
     IfxScuWdt_setCpuEndinit(passwd);
 }
 
@@ -268,16 +281,16 @@ void IfxI2c_setBaudrate(Ifx_I2C *i2c, float32 baudrate)
     uint8   rmc     = i2c->CLC1.B.RMC;
     float32 dec;
 
-    if (baudrate > 400000)                              // for High Speed mode
+    if (baudrate > 400000)                              /* for High Speed mode */
     {
-        dec = ((((fKernel / baudrate) * 46) - 92) / 5); // always: Inc = 46
+        dec = ((((fKernel / baudrate) * 46) - 92) / 5); /* always: Inc = 46 */
     }
-    else                                                // for Standard and fast mode
+    else                                                /* for Standard and fast mode */
     {
-        dec = (((fKernel / rmc) / baudrate) - 3) / 2;   // always: Inc = 1
+        dec = (((fKernel / rmc) / baudrate) - 3) / 2;   /* always: Inc = 1 */
     }
 
-    // dec:inc must be at least 6
+    /* dec:inc must be at least 6 */
     if (dec < 6)
     {
         dec = 6;
@@ -287,6 +300,7 @@ void IfxI2c_setBaudrate(Ifx_I2C *i2c, float32 baudrate)
         dec = (1 << IFX_I2C_FDIVCFG_DEC_LEN) - 1;
     }
 
+    /* Clear endinit protection */
     uint16 pwd = IfxScuWdt_getCpuWatchdogPassword();
 
     IfxScuWdt_clearCpuEndinit(pwd);
@@ -305,37 +319,62 @@ void IfxI2c_setBaudrate(Ifx_I2C *i2c, float32 baudrate)
         i2c->FDIVCFG.B.INC = 1;
         i2c->FDIVCFG.B.DEC = (uint16)(dec + 0.5f);
     }
-
+  
     i2c->TIMCFG.B.SDA_DEL_HD_DAT = 0x3F;
     i2c->TIMCFG.B.FS_SCL_LOW     = 1;
     i2c->TIMCFG.B.EN_SCL_LOW_LEN = 1;
     i2c->TIMCFG.B.SCL_LOW_LEN    = 0x20;
 
+     /* Set the endinit protection again */
     IfxScuWdt_setCpuEndinit(pwd);
 }
 
 
-void IfxI2c_configureHighSpeedMode(Ifx_I2C *i2c)
+void IfxI2c_configureAsSlave(Ifx_I2C *i2c)
 {
-    // enter config Mode
-    IfxI2c_stop(i2c);
-
-    i2c->ADDRCFG.B.MCE  = 1; // master code enable
-    i2c->ADDRCFG.B.SONA = 1;
-    i2c->ADDRCFG.B.SOPE = 1;
-
-    IfxI2c_run(i2c);
-    IfxI2c_setTransmitPacketSize(i2c, 1);
-    IfxI2c_writeFifo(i2c, IFXI2C_HIGHSPEED_MASTER_CODE); // Send the Master code to switch to high speed mode
-
-    while (!(IfxI2c_getProtocolInterruptSourceStatus(i2c, IfxI2c_ProtocolInterruptSource_transmissionEnd)))
-    {}
-
-    IfxI2c_clearAllDtrInterruptSources(i2c);
-    IfxI2c_clearAllProtocolInterruptSources(i2c);
-
-    IfxI2c_stop(i2c);
-
-    while (IfxI2c_getBusStatus(i2c) != 0U)
-    {}
+    i2c->ADDRCFG.B.MNS = 0; /* Slave mode */
 }
+
+
+void IfxI2c_configureAddrFifo(Ifx_I2C *i2c, const IfxI2c_Config *config)
+{
+    /* Note: I2C should not be running. Use IfxI2c_stop() before calling this api. */
+
+    i2c->ADDRCFG.B.ADR  = config->addressConfig.slaveAddress;
+    i2c->ADDRCFG.B.GCE  = config->addressConfig.generalCallEnable;
+    i2c->ADDRCFG.B.MCE  = config->addressConfig.masterCodeEnable;
+    i2c->ADDRCFG.B.SONA = config->addressConfig.stopOnNotAcknowledge;
+    i2c->ADDRCFG.B.SOPE = config->addressConfig.stopOnPacketEnd;
+    i2c->ADDRCFG.B.TBAM = config->addressConfig.addressMode;
+
+    i2c->FIFOCFG.B.TXFC = config->fifoConfig.txFifoFlowControl;
+    i2c->FIFOCFG.B.RXFC = config->fifoConfig.rxFifoFlowControl;
+    i2c->FIFOCFG.B.TXBS = config->fifoConfig.txBurstSize;
+    i2c->FIFOCFG.B.RXBS = config->fifoConfig.rxBurstSize;
+    i2c->FIFOCFG.B.TXFA = config->fifoConfig.txFifoAlignment;
+    i2c->FIFOCFG.B.RXFA = config->fifoConfig.rxFifoAlignment;
+}
+
+
+void IfxI2c_configureTiming(Ifx_I2C *i2c, const IfxI2c_TimingConfig *timingConfig)
+{
+    /* Clear endinit protection */
+    uint16 pwd = IfxScuWdt_getCpuWatchdogPassword();
+	IfxScuWdt_clearCpuEndinit(pwd);
+
+    i2c->TIMCFG.B.SDA_DEL_HD_DAT    = timingConfig->sdaDelHdDat;        /* SDA Delay Stages for Data Hold Time */
+    i2c->TIMCFG.B.HS_SDA_DEL_HD_DAT = timingConfig->hsSdaDelHdDat;      /* SDA Delay Stages for High-speed Mode */
+    i2c->TIMCFG.B.SCL_DEL_HD_STA    = timingConfig->sclDelHdSta;        /* SCL Delay Stages for Hold Time Start */
+    i2c->TIMCFG.B.EN_SCL_LOW_LEN    = timingConfig->enSclLowLen;        /* Enable SCL Low Period Length */
+    i2c->TIMCFG.B.FS_SCL_LOW        = timingConfig->fsSclLow;           /* Enable Fast Mode SCL Low Timing */
+    i2c->TIMCFG.B.HS_SDA_DEL        = timingConfig->hsSdaDel;           /* SDA Delay for Start/Stop Bit in High-speed Mode */
+    i2c->TIMCFG.B.SCL_LOW_LEN       = timingConfig->sclLowLen;          /* SCL Low Length in Fast Mode */
+
+    /* Set the endinit protection again */
+    IfxScuWdt_setCpuEndinit(pwd);
+}
+#endif
+
+#if defined (_TASKING_) || defined (_ghs_)
+#pragma restore
+#endif
