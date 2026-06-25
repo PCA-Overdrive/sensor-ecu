@@ -18,10 +18,10 @@
 #define HALL_APP_UPDATE_PERIOD_MS           (1U)
 
 /*
- * DM2246 D0 -> TC375 P02.7
+ * DM2246 D0 -> TC375 P10.5
  */
-#define HALL_PORT                           (&MODULE_P02)
-#define HALL_PIN_INDEX                      (7U)
+#define HALL_PORT                           (&MODULE_P10)
+#define HALL_PIN_INDEX                      (5U)
 
 /*
  * Wheel has 2 magnets.

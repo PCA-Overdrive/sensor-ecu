@@ -45,13 +45,11 @@ void tc375_i2c_hw_init(uint32_t baudrateHz)
     IfxI2c_I2c_initConfig(&i2cConfig, &MODULE_I2C0);
 
     /*
-     * SCL = P02.5, SDA = P02.4, TTL pad driver.
+     * SCL = P13.1, SDA = P13.2, TTL pad driver.
      */
     static const IfxI2c_Pins i2cPins = {
-        // .scl       = &IfxI2c0_SCL_P02_5_INOUT,
-        // .sda       = &IfxI2c0_SDA_P02_4_INOUT,
-        .scl       = &IfxI2c0_SCL_P15_4_INOUT,
-        .sda       = &IfxI2c0_SDA_P15_5_INOUT,        
+        .scl       = &IfxI2c0_SCL_P13_1_INOUT,
+        .sda       = &IfxI2c0_SDA_P13_2_INOUT,
         .padDriver = IfxPort_PadDriver_ttlSpeed1
     };
 
