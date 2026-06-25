@@ -42,6 +42,7 @@
 #include "task.h"
 
 #include "Apps/App_Can/App_Can.h"
+#include "Apps/App_HallSensor/App_HallSensor.h"
 #include "Apps/App_SchedulingStatus/App_SchedulingStatus.h"
 #include "Apps/App_Ultrasonic/App_Ultrasonic.h"
 #include "Apps/App_IMU/App_IMU.h"
@@ -73,6 +74,7 @@ void core0_main(void)
     xTaskCreate(SchedulingStatusApp_Run, "APP STATUS", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(CanApp_Run, "APP CAN", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(UltrasonicApp_Run, "APP ULTRASONIC", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
+    xTaskCreate(HallSensorApp_Run, "APP HALL", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(task_app_led2, "APP LED2", TASK_STACK_LED2, NULL, TASK_PRIO_LED2, NULL);
     xTaskCreate(task_app_button, "APP BUTTON", TASK_STACK_BUTTON, NULL, TASK_PRIO_BUTTON, NULL);
     xTaskCreate(task_app_debug, "APP DEBUG", TASK_STACK_DEBUG, NULL, TASK_PRIO_DEBUG, NULL);

@@ -7,6 +7,8 @@
 /*********************************************************************************************************************/
 #include "App_HallSensor.h"
 
+#include "Apps/App_Debug/App_Debug.h"
+
 #include "Port/Std/IfxPort.h"
 
 #include "FreeRTOS.h"
@@ -18,10 +20,10 @@
 #define HALL_APP_UPDATE_PERIOD_MS           (1U)
 
 /*
- * DM2246 D0 -> TC375 P10.5
+ * DM2246 D0 -> TC375 P40.9
  */
-#define HALL_PORT                           (&MODULE_P10)
-#define HALL_PIN_INDEX                      (5U)
+#define HALL_PORT                           (&MODULE_P40)
+#define HALL_PIN_INDEX                      (9U)
 
 /*
  * Wheel has 2 magnets.
@@ -63,6 +65,9 @@
 #define HALL_CAN_SPEED_SCALE_DIVIDER        (10U)
 #define HALL_CAN_SPEED_MAX                  (0xFFU)
 
+#define HALL_DEBUG_ENABLE                   (1U)
+#define HALL_DEBUG_PRINT_PERIOD_MS          (100U)
+
 /*********************************************************************************************************************/
 /*-------------------------------------------------Global Variables--------------------------------------------------*/
 /*********************************************************************************************************************/
@@ -90,6 +95,7 @@ static uint32 s_timeMs = 0U;
  */
 static uint32 s_lastPulseTimeMs = 0U;
 static uint32 s_lastPulseIntervalMs = 0U;
+static uint32 s_lastDebugPrintTimeMs = 0U;
 
 /*********************************************************************************************************************/
 /*------------------------------------------------Debug Variables----------------------------------------------------*/
@@ -129,6 +135,9 @@ static void   HallSensor_updatePulseAgeAndTimeout(void);
 static void   HallSensor_storeSpeed(uint16 speedX100);
 static void   HallSensor_reset(void);
 static void   HallSensor_updateMs(uint32 periodMs);
+#if (HALL_DEBUG_ENABLE != 0U)
+static void   HallSensor_printPeriodicDebug(uint8 rawLevel, uint8 detected);
+#endif
 
 /*********************************************************************************************************************/
 /*---------------------------------------------Function Implementations----------------------------------------------*/
@@ -162,6 +171,30 @@ static void HallSensor_updateDebug(uint8 rawLevel, uint8 detected)
     debugHallRawLevel = rawLevel;
     debugHallDetected = detected;
 }
+
+#if (HALL_DEBUG_ENABLE != 0U)
+static void HallSensor_printPeriodicDebug(uint8 rawLevel, uint8 detected)
+{
+    if ((uint32)(s_timeMs - s_lastDebugPrintTimeMs) < HALL_DEBUG_PRINT_PERIOD_MS)
+    {
+        return;
+    }
+
+    s_lastDebugPrintTimeMs = s_timeMs;
+
+    DebugLog_printf("[HALL] t:%u raw:%u det:%u prev:%u cnt:%u int:%u age:%u speedX100:%u can:%u ignored:%u\r\n",
+                    (unsigned int)s_timeMs,
+                    (unsigned int)rawLevel,
+                    (unsigned int)detected,
+                    (unsigned int)s_prevDetected,
+                    (unsigned int)s_pulseCount,
+                    (unsigned int)s_lastPulseIntervalMs,
+                    (unsigned int)debugHallPulseAgeMs,
+                    (unsigned int)s_vehicleSpeedX100,
+                    (unsigned int)g_hallVehicleSpeed,
+                    (unsigned int)debugHallIgnoredPulseCount);
+}
+#endif
 
 static uint16 HallSensor_calcSpeedX100(uint32 intervalMs)
 {
@@ -272,6 +305,12 @@ static void HallSensor_updatePulseAgeAndTimeout(void)
         debugHallHasValidInterval = 0U;
         debugHallTimeoutZero = 1U;
         debugHallStartupEstimated = 0U;
+
+#if (HALL_DEBUG_ENABLE != 0U)
+        DebugLog_printf("[HALL] timeout t:%u age:%u can:0\r\n",
+                        (unsigned int)s_timeMs,
+                        (unsigned int)pulseAgeMs);
+#endif
     }
 }
 
@@ -302,6 +341,7 @@ static void HallSensor_reset(void)
     s_timeMs = 0U;
     s_lastPulseTimeMs = 0U;
     s_lastPulseIntervalMs = 0U;
+    s_lastDebugPrintTimeMs = 0U;
 
     g_hallVehicleSpeed = 0U;
 
@@ -376,6 +416,16 @@ static void HallSensor_updateMs(uint32 periodMs)
             debugHallLastPulseIntervalMs = s_lastPulseIntervalMs;
             debugHallPulseAgeMs = 0U;
             debugHallTimeoutZero = 0U;
+
+#if (HALL_DEBUG_ENABLE != 0U)
+            DebugLog_printf("[HALL] first pulse t:%u raw:%u det:%u cnt:%u speedX100:%u can:%u\r\n",
+                            (unsigned int)s_timeMs,
+                            (unsigned int)rawLevel,
+                            (unsigned int)nowDetected,
+                            (unsigned int)s_pulseCount,
+                            (unsigned int)s_vehicleSpeedX100,
+                            (unsigned int)g_hallVehicleSpeed);
+#endif
         }
         else
         {
@@ -401,10 +451,30 @@ static void HallSensor_updateMs(uint32 periodMs)
                 debugHallHasValidInterval = s_hasValidInterval;
                 debugHallTimeoutZero = 0U;
                 debugHallStartupEstimated = 0U;
+
+#if (HALL_DEBUG_ENABLE != 0U)
+                DebugLog_printf("[HALL] pulse t:%u raw:%u det:%u cnt:%u int:%u speedX100:%u can:%u\r\n",
+                                (unsigned int)s_timeMs,
+                                (unsigned int)rawLevel,
+                                (unsigned int)nowDetected,
+                                (unsigned int)s_pulseCount,
+                                (unsigned int)s_lastPulseIntervalMs,
+                                (unsigned int)s_vehicleSpeedX100,
+                                (unsigned int)g_hallVehicleSpeed);
+#endif
             }
             else
             {
                 debugHallIgnoredPulseCount++;
+
+#if (HALL_DEBUG_ENABLE != 0U)
+                DebugLog_printf("[HALL] ignored pulse t:%u raw:%u det:%u int:%u ignored:%u\r\n",
+                                (unsigned int)s_timeMs,
+                                (unsigned int)rawLevel,
+                                (unsigned int)nowDetected,
+                                (unsigned int)intervalMs,
+                                (unsigned int)debugHallIgnoredPulseCount);
+#endif
             }
         }
     }
@@ -412,6 +482,10 @@ static void HallSensor_updateMs(uint32 periodMs)
     s_prevDetected = nowDetected;
 
     HallSensor_updatePulseAgeAndTimeout();
+
+#if (HALL_DEBUG_ENABLE != 0U)
+    HallSensor_printPeriodicDebug(rawLevel, nowDetected);
+#endif
 }
 
 void HallSensorApp_Init(void)
@@ -430,6 +504,11 @@ void HallSensorApp_Init(void)
                             IfxPort_InputMode_pullUp);
 
     HallSensor_reset();
+
+#if (HALL_DEBUG_ENABLE != 0U)
+    DebugLog_printf("[HALL] init port:P40.9 activeLow pullUp period:%u ms\r\n",
+                    (unsigned int)HALL_APP_UPDATE_PERIOD_MS);
+#endif
 
     s_isInitialized = TRUE;
 }
