@@ -18,16 +18,6 @@
 /*------------------------------------------------------Macros-------------------------------------------------------*/
 /*********************************************************************************************************************/
 #define CAN_APP_SEND_INTERVAL_MS                (100U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR0       (0U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR5       (1U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR1       (2U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR6       (3U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR2       (4U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR7       (5U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR3       (6U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR8       (7U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR4       (8U)
-#define ULTRASONIC_DISTANCE_INDEX_SENSOR9       (9U)
 
 /*********************************************************************************************************************/
 /*-------------------------------------------------Global Variables--------------------------------------------------*/
@@ -45,18 +35,18 @@ static void sendUltrasonicDistanceMessage(void);
 /*********************************************************************************************************************/
 static void sendUltrasonicDistanceMessage(void)
 {
-    UltrasonicDistanceCmd_t message;
+    UltrasonicDistanceCmd_t message = {0};
 
-    message.frontDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR0];
-    message.frontRightDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR1];
-    message.rightFrontDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR2];
-    message.rightBehindDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR3];
-    message.behindRightDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR4];
-    message.behindDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR5];
-    message.behindLeftDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR6];
-    message.leftBehindDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR7];
-    message.leftFrontDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR8];
-    message.frontLeftDist = g_distances[ULTRASONIC_DISTANCE_INDEX_SENSOR9];
+    message.frontDist = g_distancesMm[ULTRASONIC_FC];
+    message.frontRightDist = g_distancesMm[ULTRASONIC_FR];
+    message.rightFrontDist = g_distancesMm[ULTRASONIC_RF];
+    message.rightBehindDist = g_distancesMm[ULTRASONIC_RM];
+    message.behindRightDist = g_distancesMm[ULTRASONIC_RR];
+    message.behindDist = g_distancesMm[ULTRASONIC_BC];
+    message.behindLeftDist = g_distancesMm[ULTRASONIC_RL];
+    message.leftBehindDist = g_distancesMm[ULTRASONIC_LM];
+    message.leftFrontDist = g_distancesMm[ULTRASONIC_LF];
+    message.frontLeftDist = g_distancesMm[ULTRASONIC_FL];
     message.imuYaw = g_imuYaw;
     message.vehicleSpeed = g_hallVehicleSpeed;
 
@@ -92,4 +82,3 @@ void CanApp_SetImuYaw(sint16 imuYaw)
 {
     g_imuYaw = imuYaw;
 }
-

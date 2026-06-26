@@ -10,17 +10,42 @@
 /*------------------------------------------------------Macros-------------------------------------------------------*/
 /*********************************************************************************************************************/
 #define ULTRASONIC_SENSOR_COUNT             (10U)
-#define ULTRASONIC_INVALID_DISTANCE_MM      ((uint16)0xFFFFU)
+#define ULTRASONIC_MAX_DISTANCE_MM          ((uint16)2000U)
+
+#define ULTRASONIC_OUT_OF_RANGE             ((uint16)0xFFFBU)
+#define ULTRASONIC_NOT_UPDATED              ((uint16)0xFFFCU)
+#define ULTRASONIC_STALE                    ((uint16)0xFFFDU)
+#define ULTRASONIC_BAD_MEASUREMENT          ((uint16)0xFFFEU)
+#define ULTRASONIC_ERROR                    ((uint16)0xFFFFU)
+#define ULTRASONIC_INVALID_DISTANCE_MM      ULTRASONIC_ERROR
+
+/*********************************************************************************************************************/
+/*----------------------------------------------------Data Types-----------------------------------------------------*/
+/*********************************************************************************************************************/
+typedef enum
+{
+    ULTRASONIC_FC = 0,
+    ULTRASONIC_FR,
+    ULTRASONIC_RF,
+    ULTRASONIC_RM,
+    ULTRASONIC_RR,
+    ULTRASONIC_BC,
+    ULTRASONIC_RL,
+    ULTRASONIC_LM,
+    ULTRASONIC_LF,
+    ULTRASONIC_FL
+} UltrasonicSensorId;
 
 /*********************************************************************************************************************/
 /*-------------------------------------------------Global Variables--------------------------------------------------*/
 /*********************************************************************************************************************/
-extern uint16 g_distances[ULTRASONIC_SENSOR_COUNT];
+extern volatile uint16 g_distancesMm[ULTRASONIC_SENSOR_COUNT];
 
 /*********************************************************************************************************************/
 /*------------------------------------------------Function Prototypes------------------------------------------------*/
 /*********************************************************************************************************************/
 void UltrasonicApp_Init(void);
 void UltrasonicApp_Run(void *arg);
+void Ultrasonic_Run(void *arg);
 
 #endif /* __APP_ULTRASONIC_H__ */

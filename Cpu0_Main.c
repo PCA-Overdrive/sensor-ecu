@@ -73,7 +73,7 @@ void core0_main(void)
     /* Create task */
     xTaskCreate(SchedulingStatusApp_Run, "APP STATUS", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(CanApp_Run, "APP CAN", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
-    xTaskCreate(UltrasonicApp_Run, "APP ULTRASONIC", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
+    xTaskCreate(Ultrasonic_Run, "APP ULTRASONIC", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(HallSensorApp_Run, "APP HALL", configMINIMAL_STACK_SIZE, NULL, 0, NULL);
     xTaskCreate(task_app_led2, "APP LED2", TASK_STACK_LED2, NULL, TASK_PRIO_LED2, NULL);
     xTaskCreate(task_app_button, "APP BUTTON", TASK_STACK_BUTTON, NULL, TASK_PRIO_BUTTON, NULL);
