@@ -46,7 +46,7 @@
 #include "Apps/App_SchedulingStatus/App_SchedulingStatus.h"
 #include "Apps/App_Ultrasonic/App_Ultrasonic.h"
 #include "Apps/App_IMU/App_IMU.h"
-#include "APPS/App_Debug/App_Debug.h"
+#include "Apps/App_Debug/App_Debug.h"
 #include "Apps/App_Button/App_Button.h"
 #include "Apps/App_Led2/App_Led2.h"
 

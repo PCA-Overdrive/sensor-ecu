@@ -41,7 +41,6 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <string.h>
 /*********************************************************************************************************************/
 
 /*********************************************************************************************************************/
@@ -49,6 +48,7 @@
 #define DEBUG_UART_BAUDRATE       115200u
 #define ASC_TX_BUFFER_SIZE        512u
 #define ASC_RX_BUFFER_SIZE        64u
+#define ASCLIN_TX_FIFO_SIZE       16u
 
 #define ISR_PRIORITY_ASCLIN0_TX   10u
 #define ISR_PRIORITY_ASCLIN0_RX   11u
@@ -72,6 +72,7 @@ static bool g_debugUartInitialized = false;
 
 /*********************************************************************************************************************/
 /*------------------------------------------------Function Prototypes------------------------------------------------*/
+static void DebugUart_putcPolling(uint8 ch);
 /*********************************************************************************************************************/
 
 /*********************************************************************************************************************/
@@ -107,9 +108,13 @@ void DebugUart_init(void)
 
     ascConfig.baudrate.baudrate = DEBUG_UART_BAUDRATE;
 
-    ascConfig.interrupt.txPriority = ISR_PRIORITY_ASCLIN0_TX;
-    ascConfig.interrupt.rxPriority = ISR_PRIORITY_ASCLIN0_RX;
-    ascConfig.interrupt.erPriority = ISR_PRIORITY_ASCLIN0_ER;
+    /*
+     * Use polling for debug output so boot logs do not depend on ASCLIN
+     * interrupt delivery while we are bringing up the board.
+     */
+    ascConfig.interrupt.txPriority = 0u;
+    ascConfig.interrupt.rxPriority = 0u;
+    ascConfig.interrupt.erPriority = 0u;
     ascConfig.interrupt.typeOfService = IfxSrc_Tos_cpu0;
 
     ascConfig.txBuffer = g_ascTxBuffer;
@@ -138,6 +143,15 @@ void DebugUart_init(void)
     g_debugUartInitialized = true;
 }
 
+static void DebugUart_putcPolling(uint8 ch)
+{
+    while (IfxAsclin_getTxFifoFillLevel(&MODULE_ASCLIN0) >= ASCLIN_TX_FIFO_SIZE)
+    {
+    }
+
+    (void)IfxAsclin_write8(&MODULE_ASCLIN0, &ch, 1U);
+}
+
 void DebugUart_puts(const char *str)
 {
     if ((str == NULL) || (!g_debugUartInitialized))
@@ -145,11 +159,10 @@ void DebugUart_puts(const char *str)
         return;
     }
 
-    Ifx_SizeT count = (Ifx_SizeT)strlen(str);
-
-    if (count > 0)
+    while (*str != '\0')
     {
-        IfxAsclin_Asc_write(&g_debugAsc, (void *)str, &count, TIME_INFINITE);
+        DebugUart_putcPolling((uint8)*str);
+        str++;
     }
 }
 
@@ -174,7 +187,7 @@ void DebugApp_init(void)
         g_debugLogQueue = xQueueCreate(DEBUG_LOG_QUEUE_LENGTH, sizeof(DebugLogMessage_t));
     }
 
-    DebugUart_printf("\r\n[DBG] UART logger init\r\n");
+    DebugUart_printf("[DBG] UART logger init\r\n");
 }
 
 bool DebugLog_isReady(void)
