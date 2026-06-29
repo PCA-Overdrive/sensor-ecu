@@ -28,7 +28,7 @@ extern "C" {
 #define M_PI 3.14159265358979323846264338327950288
 #endif
 
-#define IMU_I2C_BAUDRATE_HZ     400000u
+#define IMU_I2C_BAUDRATE_HZ     100000u
 #define ICM_AD0_HIGH            true     /* SparkFun Qwiic default: AD0=1 -> 0x69 */
 #define PRINT_PERIOD_MS         100u
 #define READY_PRINT_PERIOD_MS   500u

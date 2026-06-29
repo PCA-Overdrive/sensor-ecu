@@ -45,7 +45,7 @@
 /*
  * If no new pulse arrives for this time, treat the vehicle as stopped.
  */
-#define HALL_NO_PULSE_TIMEOUT_MS            (800U)
+#define HALL_NO_PULSE_TIMEOUT_MS            (1200U)
 
 /*
  * Estimate decreasing speed while waiting for the next pulse.

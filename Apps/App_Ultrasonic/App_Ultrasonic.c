@@ -19,19 +19,19 @@
 
 #define ULTRASONIC_TRIGGER_SETTLE_US            (2U)
 #define ULTRASONIC_TRIGGER_PULSE_US             (10U)
-#define ULTRASONIC_ECHO_WAIT_MS                 (13U)
-#define ULTRASONIC_GUARD_MS                     (7U)
+#define ULTRASONIC_ECHO_WAIT_MS                 (20U)
+#define ULTRASONIC_GUARD_MS                     (60U)
 #define ULTRASONIC_SLOT_MS                      (ULTRASONIC_ECHO_WAIT_MS + ULTRASONIC_GUARD_MS)
 
-#define ULTRASONIC_STALE_THRESHOLD_MS           (800U)
+#define ULTRASONIC_STALE_THRESHOLD_MS           (2000U)
 #define ULTRASONIC_NEAR_SUSPECT_LOWER_US        (100U)
 #define ULTRASONIC_NEAR_SUSPECT_UPPER_US        (300U)
 #define ULTRASONIC_EMERGENCY_DISTANCE_MM        (350U)
 #define ULTRASONIC_NEAR_ZONE_MM                 (800U)
-#define ULTRASONIC_MID_ZONE_MM                  (1500U)
 #define ULTRASONIC_FAR_JUMP_GATE_MM             (500U)
+#define ULTRASONIC_CONFIRM_DELTA_MM             (250U)
 
-#define ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT   (2U)
+#define ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT   (3U)
 #define ULTRASONIC_NEAR_CONFIRM_COUNT           (2U)
 #define ULTRASONIC_BAD_PUBLISH_COUNT            (2U)
 #define ULTRASONIC_BAD_ERROR_COUNT              (8U)
@@ -125,10 +125,10 @@ static const uint8 g_fireOrder[ULTRASONIC_SENSOR_COUNT] =
 {
     (uint8)ULTRASONIC_FC,
     (uint8)ULTRASONIC_BC,
-    (uint8)ULTRASONIC_RF,
-    (uint8)ULTRASONIC_LM,
     (uint8)ULTRASONIC_FR,
     (uint8)ULTRASONIC_RL,
+    (uint8)ULTRASONIC_RF,
+    (uint8)ULTRASONIC_LM,
     (uint8)ULTRASONIC_RM,
     (uint8)ULTRASONIC_LF,
     (uint8)ULTRASONIC_RR,
@@ -194,6 +194,11 @@ static UltrasonicSample readMeasurementResult(UltrasonicSensor *sensor);
 static void startGuardObservation(UltrasonicSensor *sensor);
 static void closeGuardObservation(uint8 sensorId);
 static void checkStaleSensors(void);
+static boolean isDistanceSample(const UltrasonicSample *sample);
+static boolean isOutOfRangeSample(const UltrasonicSample *sample);
+static boolean shouldRetrySample(uint8 sensorId, const UltrasonicSample *sample);
+static UltrasonicSample chooseSample(uint8 sensorId, const UltrasonicSample *first, const UltrasonicSample *second);
+static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample);
 static void runSensorSlot(uint8 sensorId);
 static void Ultrasonic_InternalInit(void);
 
@@ -503,16 +508,11 @@ static void processOutOfRange(uint8 sensorId)
         return;
     }
 
-    if (isPublishedDistance(state->lastPublishedValue) != FALSE)
+    if ((isPublishedDistance(state->lastPublishedValue) != FALSE) &&
+        (state->outOfRangeCount < ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT))
     {
-        if (state->lastPublishedValue <= ULTRASONIC_MID_ZONE_MM)
-        {
-            if (state->outOfRangeCount < ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT)
-            {
-                holdLastPublishedValue(sensorId);
-                return;
-            }
-        }
+        holdLastPublishedValue(sensorId);
+        return;
     }
 
     state->initialized = FALSE;
@@ -773,9 +773,139 @@ static void checkStaleSensors(void)
     }
 }
 
+static boolean isDistanceSample(const UltrasonicSample *sample)
+{
+    return ((sample->kind == ULTRASONIC_SAMPLE_VALID_IN_RANGE) ||
+            (sample->kind == ULTRASONIC_SAMPLE_NEAR_SUSPECT)) ? TRUE : FALSE;
+}
+
+static boolean isOutOfRangeSample(const UltrasonicSample *sample)
+{
+    return ((sample->kind == ULTRASONIC_SAMPLE_VALID_OUT_OF_RANGE) ||
+            (sample->kind == ULTRASONIC_SAMPLE_NO_ECHO)) ? TRUE : FALSE;
+}
+
+static uint16 distanceDelta(uint16 a, uint16 b)
+{
+    return (a >= b) ? (uint16)(a - b) : (uint16)(b - a);
+}
+
+static boolean shouldRetrySample(uint8 sensorId, const UltrasonicSample *sample)
+{
+    UltrasonicFilterState *state = &g_filterState[sensorId];
+
+    if (sample->kind == ULTRASONIC_SAMPLE_HW_ERROR)
+    {
+        return FALSE;
+    }
+
+    if (sample->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT)
+    {
+        return TRUE;
+    }
+
+    if (isDistanceSample(sample) != FALSE)
+    {
+        if (isPublishedDistance(state->lastPublishedValue) == FALSE)
+        {
+            return TRUE;
+        }
+
+        if ((state->prevSlotHadLateEcho != FALSE) && (sample->distanceMm > ULTRASONIC_EMERGENCY_DISTANCE_MM))
+        {
+            return TRUE;
+        }
+
+        if ((state->initialized != FALSE) &&
+            (state->filteredDistance > sample->distanceMm) &&
+            ((state->filteredDistance - sample->distanceMm) > ULTRASONIC_FAR_JUMP_GATE_MM) &&
+            (sample->distanceMm > ULTRASONIC_EMERGENCY_DISTANCE_MM))
+        {
+            return TRUE;
+        }
+    }
+    else if ((isOutOfRangeSample(sample) != FALSE) &&
+             (isPublishedDistance(state->lastPublishedValue) != FALSE))
+    {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static UltrasonicSample chooseSample(uint8 sensorId, const UltrasonicSample *first, const UltrasonicSample *second)
+{
+    UltrasonicSample selected = *first;
+    UltrasonicFilterState *state = &g_filterState[sensorId];
+
+    if ((isDistanceSample(first) != FALSE) && (isDistanceSample(second) != FALSE))
+    {
+        if (distanceDelta(first->distanceMm, second->distanceMm) <= ULTRASONIC_CONFIRM_DELTA_MM)
+        {
+            selected.kind = ULTRASONIC_SAMPLE_VALID_IN_RANGE;
+            selected.distanceMm = (uint16)(((uint32)first->distanceMm + (uint32)second->distanceMm + 1U) / 2U);
+            selected.echoUs = ((first->echoUs + second->echoUs + 1U) / 2U);
+            return selected;
+        }
+
+        selected.kind = ULTRASONIC_SAMPLE_BAD_MEASUREMENT;
+        selected.distanceMm = 0U;
+        selected.echoUs = 0U;
+        return selected;
+    }
+
+    if ((isDistanceSample(first) != FALSE) && (isDistanceSample(second) == FALSE))
+    {
+        return *first;
+    }
+
+    if ((isDistanceSample(first) == FALSE) && (isDistanceSample(second) != FALSE))
+    {
+        if (first->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT)
+        {
+            return *second;
+        }
+
+        if ((isOutOfRangeSample(first) != FALSE) &&
+            (second->distanceMm <= ULTRASONIC_EMERGENCY_DISTANCE_MM) &&
+            (isPublishedDistance(state->lastPublishedValue) != FALSE))
+        {
+            return *second;
+        }
+
+        return *first;
+    }
+
+    if ((isOutOfRangeSample(first) != FALSE) && (second->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT))
+    {
+        return *first;
+    }
+
+    return *second;
+}
+
+static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample)
+{
+    if (startMeasurement(sensorId) == FALSE)
+    {
+        return FALSE;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_ECHO_WAIT_MS));
+
+    *sample = readMeasurementResult(&g_sensors[sensorId]);
+    startGuardObservation(&g_sensors[sensorId]);
+    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_GUARD_MS));
+    closeGuardObservation(sensorId);
+
+    return TRUE;
+}
+
 static void runSensorSlot(uint8 sensorId)
 {
-    UltrasonicSample sample;
+    UltrasonicSample first;
+    UltrasonicSample second;
+    UltrasonicSample selected;
 
     if (g_filterState[sensorId].fault != FALSE)
     {
@@ -784,21 +914,28 @@ static void runSensorSlot(uint8 sensorId)
         return;
     }
 
-    if (startMeasurement(sensorId) == FALSE)
+    if (runSingleMeasurement(sensorId, &first) == FALSE)
     {
         markSensorFault(sensorId);
         vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_SLOT_MS));
         return;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_ECHO_WAIT_MS));
+    selected = first;
 
-    sample = readMeasurementResult(&g_sensors[sensorId]);
-    startGuardObservation(&g_sensors[sensorId]);
-    processSample(sensorId, &sample);
+    if (shouldRetrySample(sensorId, &first) != FALSE)
+    {
+        if (runSingleMeasurement(sensorId, &second) == FALSE)
+        {
+            markSensorFault(sensorId);
+            vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_SLOT_MS));
+            return;
+        }
 
-    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_GUARD_MS));
-    closeGuardObservation(sensorId);
+        selected = chooseSample(sensorId, &first, &second);
+    }
+
+    processSample(sensorId, &selected);
 }
 
 static void Ultrasonic_InternalInit(void)

@@ -9,7 +9,7 @@ CAN message
 - Payload uses first 23 bytes
 
 Payload layout, little-endian:
-B0~B19  : 10 x uint16 final published ultrasonic values
+B0~B19  : 10 x uint16 final633 published ultrasonic values
 B20~B21 : int16 imuYaw [-180..180]
 B22     : uint8 vehicleSpeed [0.1 km/h]
 B23     : padding / unused
@@ -67,6 +67,7 @@ PCAN_FD_TIMING = {
 VALID_MAX_MM = 2000
 WARN_MM = 700
 DANGER_MM = 300
+OUT_OF_RANGE_RADIUS_FACTOR = 1.18
 
 ULTRASONIC_OUT_OF_RANGE = 0xFFFB
 ULTRASONIC_NOT_UPDATED = 0xFFFC
@@ -77,32 +78,47 @@ ULTRASONIC_ERROR = 0xFFFF
 PAYLOAD_FORMAT = "<10HhB"  # 10 uint16, 1 int16, 1 uint8 = 23 bytes
 PAYLOAD_SIZE = struct.calcsize(PAYLOAD_FORMAT)
 
-SENSOR_IDS = ("FC", "FR", "RF", "RM", "RR", "BC", "RL", "LM", "LF", "FL")
+SENSOR_IDS = ("FC", "FR", "RF", "RB", "BR", "BC", "BL", "LB", "LF", "FL")
 SENSOR_NAMES = (
     "Front Center",
     "Front Right",
     "Right Front",
-    "Right Middle",
-    "Rear Right",
+    "Right Behind",
+    "Behind Right",
     "Back Center",
-    "Rear Left",
-    "Left Middle",
+    "Behind Left",
+    "Left Behind",
     "Left Front",
     "Front Left",
 )
 
-# Canvas direction vectors in sensor ID order: FC, FR, RF, RM, RR, BC, RL, LM, LF, FL.
+# Canvas direction vectors in sensor ID order: FC, FR, RF, RB, BR, BC, BL, LB, LF, FL.
 SENSOR_DIRS = (
     (0.0, -1.0),
-    (0.72, -0.72),
-    (1.0, -0.28),
-    (1.0, 0.28),
-    (0.72, 0.72),
+    (0.46, -0.89),
+    (1.0, 0.0),
+    (1.0, 0.0),
+    (0.46, 0.89),
     (0.0, 1.0),
-    (-0.72, 0.72),
-    (-1.0, 0.28),
-    (-1.0, -0.28),
-    (-0.72, -0.72),
+    (-0.46, 0.89),
+    (-1.0, 0.0),
+    (-1.0, 0.0),
+    (-0.46, -0.89),
+)
+
+# Normalized car-body arrow origins in the same order. Front-left/right sensors
+# are mounted on the front edge, while left/right-front sensors are on the side.
+SENSOR_ANCHORS = (
+    (0.0, -1.0),
+    (0.55, -1.0),
+    (1.0, -0.55),
+    (1.0, 0.55),
+    (0.55, 1.0),
+    (0.0, 1.0),
+    (-0.55, 1.0),
+    (-1.0, 0.55),
+    (-1.0, -0.55),
+    (-0.55, -1.0),
 )
 
 
@@ -496,7 +512,7 @@ class UltrasonicViewer(tk.Tk):
 
     def _distance_radius(self, item: SensorValue, min_r: float, max_r: float) -> float:
         if item.status is DistanceStatus.OUT_OF_RANGE:
-            return max_r
+            return max_r * OUT_OF_RANGE_RADIUS_FACTOR
         if item.status is not DistanceStatus.VALID:
             return min_r
 
@@ -551,14 +567,16 @@ class UltrasonicViewer(tk.Tk):
         min_r = scale * 0.18
         max_r = scale * 0.43
 
-        for item, vector in zip(self.last_data.values, SENSOR_DIRS):
+        for item, vector, anchor in zip(self.last_data.values, SENSOR_DIRS, SENSOR_ANCHORS):
             color = self._color_for_value(item)
             radius = self._distance_radius(item, min_r, max_r)
-            x = cx + vector[0] * radius
-            y = cy + vector[1] * radius
+            sx = cx + anchor[0] * (car_w / 2)
+            sy = cy + anchor[1] * (car_h / 2)
+            x = sx + vector[0] * radius
+            y = sy + vector[1] * radius
 
             dash = () if item.status is DistanceStatus.VALID else (6, 5)
-            canvas.create_line(cx, cy, x, y, fill=color, width=4, dash=dash)
+            canvas.create_line(sx, sy, x, y, fill=color, width=4, dash=dash)
 
             dot = 14
             canvas.create_oval(x - dot, y - dot, x + dot, y + dot, fill=color, outline="#f4f7fb", width=2)
@@ -568,8 +586,8 @@ class UltrasonicViewer(tk.Tk):
                 canvas.create_line(x + 10, y - 10, x - 10, y + 10, fill="#11151c", width=4)
 
             label_r = radius + 42
-            lx = cx + vector[0] * label_r
-            ly = cy + vector[1] * label_r
+            lx = sx + vector[0] * label_r
+            ly = sy + vector[1] * label_r
             canvas.create_text(
                 lx,
                 ly,
