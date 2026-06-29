@@ -20,26 +20,13 @@
 #define ULTRASONIC_TRIGGER_SETTLE_US            (2U)
 #define ULTRASONIC_TRIGGER_PULSE_US             (10U)
 #define ULTRASONIC_ECHO_WAIT_MS                 (20U)
+#define ULTRASONIC_ECHO_POLL_MS                 (1U)
 #define ULTRASONIC_GUARD_MS                     (40U)
 #define ULTRASONIC_SLOT_MS                      (ULTRASONIC_ECHO_WAIT_MS + ULTRASONIC_GUARD_MS)
 
-#define ULTRASONIC_STALE_THRESHOLD_MS           (2000U)
 #define ULTRASONIC_NEAR_SUSPECT_LOWER_US        (100U)
 #define ULTRASONIC_NEAR_SUSPECT_UPPER_US        (300U)
-#define ULTRASONIC_EMERGENCY_DISTANCE_MM        (350U)
-#define ULTRASONIC_NEAR_ZONE_MM                 (800U)
-#define ULTRASONIC_FAR_JUMP_GATE_MM             (500U)
-#define ULTRASONIC_CONFIRM_DELTA_MM             (250U)
-
-#define ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT   (3U)
-#define ULTRASONIC_NEAR_CONFIRM_COUNT           (2U)
-#define ULTRASONIC_BAD_PUBLISH_COUNT            (2U)
-#define ULTRASONIC_BAD_ERROR_COUNT              (8U)
-
-#define ULTRASONIC_ALPHA_APPROACH_EMERGENCY     (100U)
-#define ULTRASONIC_ALPHA_APPROACH_NEAR          (85U)
-#define ULTRASONIC_ALPHA_APPROACH_FAR           (80U)
-#define ULTRASONIC_ALPHA_RECEDING               (25U)
+#define ULTRASONIC_STALE_THRESHOLD_MS           (2000U)
 
 /*********************************************************************************************************************/
 /*----------------------------------------------------Data Types-----------------------------------------------------*/
@@ -86,22 +73,11 @@ typedef struct
 
 typedef struct
 {
-    uint16     filteredDistance;
-    uint16     lastRawDistance;
     uint16     lastPublishedValue;
 
-    uint8      outOfRangeCount;
-    uint8      badMeasurementCount;
-    uint8      nearSuspectCount;
-    uint8      farJumpCount;
-
     TickType_t lastPublishTime;
-    boolean    lateEchoFlag;
-    boolean    prevSlotHadLateEcho;
-
-    boolean    initialized;
     boolean    fault;
-} UltrasonicFilterState;
+} UltrasonicSensorState;
 
 /*********************************************************************************************************************/
 /*-------------------------------------------------Global Variables--------------------------------------------------*/
@@ -135,11 +111,10 @@ static const uint8 g_fireOrder[ULTRASONIC_SENSOR_COUNT] =
     (uint8)ULTRASONIC_FL
 };
 
-static UltrasonicFilterState g_filterState[ULTRASONIC_SENSOR_COUNT];
+static UltrasonicSensorState g_sensorState[ULTRASONIC_SENSOR_COUNT];
 static boolean g_isInitialized = FALSE;
 static uint32  g_ticksPerUs = 1U;
 static uint8   g_fireOrderIndex = 0U;
-static boolean g_previousSlotHadLateEcho = FALSE;
 
 volatile uint16 g_distancesMm[ULTRASONIC_SENSOR_COUNT] =
 {
@@ -172,21 +147,13 @@ static void delayUs(uint32 us);
 static uint32 usToTicks(uint32 us);
 static uint32 timTicksToUs(UltrasonicSensor *sensor, uint32 ticks);
 static uint16 echoUsToDistanceMm(uint32 echoUs);
-static boolean isPublishedDistance(uint16 value);
 static uint16 sanitizePublishedValue(uint16 value);
 
 static void publishValue(uint8 sensorId, uint16 value);
-static void holdLastPublishedValue(uint8 sensorId);
 static void markSensorFault(uint8 sensorId);
 static void markAllSensorsFault(void);
-static uint8 incrementCounter(uint8 value);
 
-static void resetFilterState(uint8 sensorId, TickType_t now);
-static uint16 moveFilteredDistance(uint16 current, uint16 raw, uint8 alphaPercent);
-static void processAcceptedDistance(uint8 sensorId, uint16 rawDistanceMm);
-static void processOutOfRange(uint8 sensorId);
-static void processNearSuspect(uint8 sensorId, uint16 rawDistanceMm);
-static void processBadMeasurement(uint8 sensorId);
+static void resetSensorState(uint8 sensorId, TickType_t now);
 static void processSample(uint8 sensorId, const UltrasonicSample *sample);
 
 static boolean startMeasurement(uint8 sensorId);
@@ -194,12 +161,7 @@ static UltrasonicSample readMeasurementResult(UltrasonicSensor *sensor);
 static void startGuardObservation(UltrasonicSensor *sensor);
 static void closeGuardObservation(uint8 sensorId);
 static void checkStaleSensors(void);
-static boolean isDistanceSample(const UltrasonicSample *sample);
-static boolean isOutOfRangeSample(const UltrasonicSample *sample);
-static boolean shouldRetrySample(uint8 sensorId, const UltrasonicSample *sample);
-static UltrasonicSample chooseSample(uint8 sensorId, const UltrasonicSample *first, const UltrasonicSample *second);
 static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample);
-static void waitGuardObservation(uint8 sensorId);
 static void runSensorSlot(uint8 sensorId);
 static void Ultrasonic_InternalInit(void);
 
@@ -319,11 +281,6 @@ static uint16 echoUsToDistanceMm(uint32 echoUs)
     return (uint16)distanceMm;
 }
 
-static boolean isPublishedDistance(uint16 value)
-{
-    return (value <= ULTRASONIC_MAX_DISTANCE_MM) ? TRUE : FALSE;
-}
-
 static uint16 sanitizePublishedValue(uint16 value)
 {
     if ((value > ULTRASONIC_MAX_DISTANCE_MM) && (value < ULTRASONIC_OUT_OF_RANGE))
@@ -336,7 +293,7 @@ static uint16 sanitizePublishedValue(uint16 value)
 
 static void publishValue(uint8 sensorId, uint16 value)
 {
-    UltrasonicFilterState *state = &g_filterState[sensorId];
+    UltrasonicSensorState *state = &g_sensorState[sensorId];
     uint16 sanitizedValue = sanitizePublishedValue(value);
 
     g_distancesMm[sensorId] = sanitizedValue;
@@ -344,22 +301,11 @@ static void publishValue(uint8 sensorId, uint16 value)
     state->lastPublishTime = xTaskGetTickCount();
 }
 
-static void holdLastPublishedValue(uint8 sensorId)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    if (state->lastPublishedValue != ULTRASONIC_NOT_UPDATED)
-    {
-        publishValue(sensorId, state->lastPublishedValue);
-    }
-}
-
 static void markSensorFault(uint8 sensorId)
 {
-    UltrasonicFilterState *state = &g_filterState[sensorId];
+    UltrasonicSensorState *state = &g_sensorState[sensorId];
 
     state->fault = TRUE;
-    state->initialized = FALSE;
     publishValue(sensorId, ULTRASONIC_ERROR);
 }
 
@@ -371,208 +317,18 @@ static void markAllSensorsFault(void)
     }
 }
 
-static uint8 incrementCounter(uint8 value)
+static void resetSensorState(uint8 sensorId, TickType_t now)
 {
-    return (value < 255U) ? (uint8)(value + 1U) : value;
-}
+    UltrasonicSensorState *state = &g_sensorState[sensorId];
 
-static void resetFilterState(uint8 sensorId, TickType_t now)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    state->filteredDistance = 0U;
-    state->lastRawDistance = 0U;
     state->lastPublishedValue = ULTRASONIC_NOT_UPDATED;
-    state->outOfRangeCount = 0U;
-    state->badMeasurementCount = 0U;
-    state->nearSuspectCount = 0U;
-    state->farJumpCount = 0U;
     state->lastPublishTime = now;
-    state->lateEchoFlag = FALSE;
-    state->prevSlotHadLateEcho = FALSE;
-    state->initialized = FALSE;
     state->fault = FALSE;
-}
-
-static uint16 moveFilteredDistance(uint16 current, uint16 raw, uint8 alphaPercent)
-{
-    sint32 delta;
-    sint32 next;
-    sint32 correction;
-
-    if (alphaPercent >= 100U)
-    {
-        return raw;
-    }
-
-    delta = (sint32)raw - (sint32)current;
-    correction = (delta * (sint32)alphaPercent) / 100;
-    next = (sint32)current + correction;
-
-    if (next < 0)
-    {
-        next = 0;
-    }
-    else if (next > (sint32)ULTRASONIC_MAX_DISTANCE_MM)
-    {
-        next = (sint32)ULTRASONIC_MAX_DISTANCE_MM;
-    }
-
-    return (uint16)next;
-}
-
-static void processAcceptedDistance(uint8 sensorId, uint16 rawDistanceMm)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-    uint16 filtered;
-
-    state->lastRawDistance = rawDistanceMm;
-    state->outOfRangeCount = 0U;
-    state->badMeasurementCount = 0U;
-    state->nearSuspectCount = 0U;
-
-    if (state->initialized == FALSE)
-    {
-        state->filteredDistance = rawDistanceMm;
-        state->lastRawDistance = rawDistanceMm;
-        state->farJumpCount = 0U;
-        state->initialized = TRUE;
-        publishValue(sensorId, rawDistanceMm);
-        return;
-    }
-
-    filtered = state->filteredDistance;
-
-    if (rawDistanceMm < filtered)
-    {
-        uint8 alpha;
-
-        if (rawDistanceMm <= ULTRASONIC_EMERGENCY_DISTANCE_MM)
-        {
-            alpha = ULTRASONIC_ALPHA_APPROACH_EMERGENCY;
-        }
-        else if (rawDistanceMm <= ULTRASONIC_NEAR_ZONE_MM)
-        {
-            alpha = ULTRASONIC_ALPHA_APPROACH_NEAR;
-        }
-        else
-        {
-            alpha = ULTRASONIC_ALPHA_APPROACH_FAR;
-        }
-
-        state->farJumpCount = 0U;
-        state->filteredDistance = moveFilteredDistance(filtered, rawDistanceMm, alpha);
-        publishValue(sensorId, state->filteredDistance);
-    }
-    else if (rawDistanceMm > filtered)
-    {
-        uint16 delta = rawDistanceMm - filtered;
-
-        if (delta > ULTRASONIC_FAR_JUMP_GATE_MM)
-        {
-            state->farJumpCount = incrementCounter(state->farJumpCount);
-
-            if (state->farJumpCount < 2U)
-            {
-                holdLastPublishedValue(sensorId);
-                return;
-            }
-        }
-        else
-        {
-            state->farJumpCount = 0U;
-        }
-
-        state->filteredDistance = moveFilteredDistance(filtered, rawDistanceMm, ULTRASONIC_ALPHA_RECEDING);
-        publishValue(sensorId, state->filteredDistance);
-    }
-    else
-    {
-        state->farJumpCount = 0U;
-        publishValue(sensorId, filtered);
-    }
-}
-
-static void processOutOfRange(uint8 sensorId)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    state->outOfRangeCount = incrementCounter(state->outOfRangeCount);
-    state->badMeasurementCount = 0U;
-    state->nearSuspectCount = 0U;
-    state->farJumpCount = 0U;
-
-    if (state->lastPublishedValue == ULTRASONIC_OUT_OF_RANGE)
-    {
-        state->initialized = FALSE;
-        publishValue(sensorId, ULTRASONIC_OUT_OF_RANGE);
-        return;
-    }
-
-    if ((isPublishedDistance(state->lastPublishedValue) != FALSE) &&
-        (state->outOfRangeCount < ULTRASONIC_OUT_OF_RANGE_CONFIRM_COUNT))
-    {
-        holdLastPublishedValue(sensorId);
-        return;
-    }
-
-    state->initialized = FALSE;
-    publishValue(sensorId, ULTRASONIC_OUT_OF_RANGE);
-}
-
-static void processNearSuspect(uint8 sensorId, uint16 rawDistanceMm)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    state->lastRawDistance = rawDistanceMm;
-    state->outOfRangeCount = 0U;
-    state->badMeasurementCount = 0U;
-    state->farJumpCount = 0U;
-    state->nearSuspectCount = incrementCounter(state->nearSuspectCount);
-
-    if ((state->prevSlotHadLateEcho != FALSE) &&
-        (state->nearSuspectCount < ULTRASONIC_NEAR_CONFIRM_COUNT))
-    {
-        holdLastPublishedValue(sensorId);
-        return;
-    }
-
-    if (state->nearSuspectCount >= ULTRASONIC_NEAR_CONFIRM_COUNT)
-    {
-        processAcceptedDistance(sensorId, rawDistanceMm);
-    }
-    else
-    {
-        holdLastPublishedValue(sensorId);
-    }
-}
-
-static void processBadMeasurement(uint8 sensorId)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    state->badMeasurementCount = incrementCounter(state->badMeasurementCount);
-    state->outOfRangeCount = 0U;
-    state->nearSuspectCount = 0U;
-    state->farJumpCount = 0U;
-
-    if (state->badMeasurementCount >= ULTRASONIC_BAD_ERROR_COUNT)
-    {
-        markSensorFault(sensorId);
-    }
-    else if (state->badMeasurementCount >= ULTRASONIC_BAD_PUBLISH_COUNT)
-    {
-        publishValue(sensorId, ULTRASONIC_BAD_MEASUREMENT);
-    }
-    else
-    {
-        holdLastPublishedValue(sensorId);
-    }
 }
 
 static void processSample(uint8 sensorId, const UltrasonicSample *sample)
 {
-    UltrasonicFilterState *state = &g_filterState[sensorId];
+    UltrasonicSensorState *state = &g_sensorState[sensorId];
 
     if (state->fault != FALSE)
     {
@@ -583,20 +339,17 @@ static void processSample(uint8 sensorId, const UltrasonicSample *sample)
     switch (sample->kind)
     {
     case ULTRASONIC_SAMPLE_VALID_IN_RANGE:
-        processAcceptedDistance(sensorId, sample->distanceMm);
+    case ULTRASONIC_SAMPLE_NEAR_SUSPECT:
+        publishValue(sensorId, sample->distanceMm);
         break;
 
     case ULTRASONIC_SAMPLE_VALID_OUT_OF_RANGE:
     case ULTRASONIC_SAMPLE_NO_ECHO:
-        processOutOfRange(sensorId);
-        break;
-
-    case ULTRASONIC_SAMPLE_NEAR_SUSPECT:
-        processNearSuspect(sensorId, sample->distanceMm);
+        publishValue(sensorId, ULTRASONIC_OUT_OF_RANGE);
         break;
 
     case ULTRASONIC_SAMPLE_BAD_MEASUREMENT:
-        processBadMeasurement(sensorId);
+        publishValue(sensorId, ULTRASONIC_BAD_MEASUREMENT);
         break;
 
     case ULTRASONIC_SAMPLE_HW_ERROR:
@@ -609,7 +362,6 @@ static void processSample(uint8 sensorId, const UltrasonicSample *sample)
 static boolean startMeasurement(uint8 sensorId)
 {
     UltrasonicSensor *sensor = &g_sensors[sensorId];
-    UltrasonicFilterState *state = &g_filterState[sensorId];
 
     if (sensor->port == NULL_PTR)
     {
@@ -618,8 +370,6 @@ static boolean startMeasurement(uint8 sensorId)
 
     sensor->durationUs = 0U;
     sensor->captureState = ULTRASONIC_CAP_IDLE;
-    state->lateEchoFlag = FALSE;
-    state->prevSlotHadLateEcho = g_previousSlotHadLateEcho;
 
     setPinOutput(sensor);
     writePinLow(sensor);
@@ -727,24 +477,7 @@ static void startGuardObservation(UltrasonicSensor *sensor)
 static void closeGuardObservation(uint8 sensorId)
 {
     UltrasonicSensor *sensor = &g_sensors[sensorId];
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-    boolean lateEcho = FALSE;
 
-    if (sensor->timChannelHandle != NULL_PTR)
-    {
-        if ((IfxGtm_Tim_Ch_isNewValueEvent(sensor->timChannelHandle) != FALSE) ||
-            (IfxGtm_Tim_Ch_isDataLostEvent(sensor->timChannelHandle) != FALSE) ||
-            (IfxGtm_Tim_Ch_isCntOverflowEvent(sensor->timChannelHandle) != FALSE) ||
-            (IfxGtm_Tim_Ch_isEcntOverflowEvent(sensor->timChannelHandle) != FALSE) ||
-            (IfxGtm_Tim_Ch_isGlitchEvent(sensor->timChannelHandle) != FALSE))
-        {
-            lateEcho = TRUE;
-            sensor->captureState = ULTRASONIC_CAP_LATE_EDGE;
-        }
-    }
-
-    state->lateEchoFlag = lateEcho;
-    g_previousSlotHadLateEcho = lateEcho;
     disableTimChannel(sensor);
 }
 
@@ -755,7 +488,7 @@ static void checkStaleSensors(void)
 
     for (uint8 i = 0U; i < ULTRASONIC_SENSOR_COUNT; i++)
     {
-        UltrasonicFilterState *state = &g_filterState[i];
+        UltrasonicSensorState *state = &g_sensorState[i];
 
         if ((state->fault != FALSE) || (state->lastPublishedValue == ULTRASONIC_ERROR))
         {
@@ -764,137 +497,40 @@ static void checkStaleSensors(void)
 
         if ((TickType_t)(now - state->lastPublishTime) > threshold)
         {
-            state->initialized = FALSE;
-            state->outOfRangeCount = 0U;
-            state->badMeasurementCount = 0U;
-            state->nearSuspectCount = 0U;
-            state->farJumpCount = 0U;
             publishValue(i, ULTRASONIC_STALE);
         }
     }
 }
 
-static boolean isDistanceSample(const UltrasonicSample *sample)
-{
-    return ((sample->kind == ULTRASONIC_SAMPLE_VALID_IN_RANGE) ||
-            (sample->kind == ULTRASONIC_SAMPLE_NEAR_SUSPECT)) ? TRUE : FALSE;
-}
-
-static boolean isOutOfRangeSample(const UltrasonicSample *sample)
-{
-    return ((sample->kind == ULTRASONIC_SAMPLE_VALID_OUT_OF_RANGE) ||
-            (sample->kind == ULTRASONIC_SAMPLE_NO_ECHO)) ? TRUE : FALSE;
-}
-
-static uint16 distanceDelta(uint16 a, uint16 b)
-{
-    return (a >= b) ? (uint16)(a - b) : (uint16)(b - a);
-}
-
-static boolean shouldRetrySample(uint8 sensorId, const UltrasonicSample *sample)
-{
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    if (sample->kind == ULTRASONIC_SAMPLE_HW_ERROR)
-    {
-        return FALSE;
-    }
-
-    if (sample->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT)
-    {
-        return TRUE;
-    }
-
-    if (isDistanceSample(sample) != FALSE)
-    {
-        if (isPublishedDistance(state->lastPublishedValue) == FALSE)
-        {
-            return TRUE;
-        }
-
-        if ((state->prevSlotHadLateEcho != FALSE) && (sample->distanceMm > ULTRASONIC_EMERGENCY_DISTANCE_MM))
-        {
-            return TRUE;
-        }
-
-        if ((state->initialized != FALSE) &&
-            (state->filteredDistance > sample->distanceMm) &&
-            ((state->filteredDistance - sample->distanceMm) > ULTRASONIC_FAR_JUMP_GATE_MM) &&
-            (sample->distanceMm > ULTRASONIC_EMERGENCY_DISTANCE_MM))
-        {
-            return TRUE;
-        }
-    }
-    else if ((isOutOfRangeSample(sample) != FALSE) &&
-             (isPublishedDistance(state->lastPublishedValue) != FALSE))
-    {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-static UltrasonicSample chooseSample(uint8 sensorId, const UltrasonicSample *first, const UltrasonicSample *second)
-{
-    UltrasonicSample selected = *first;
-    UltrasonicFilterState *state = &g_filterState[sensorId];
-
-    if ((isDistanceSample(first) != FALSE) && (isDistanceSample(second) != FALSE))
-    {
-        if (distanceDelta(first->distanceMm, second->distanceMm) <= ULTRASONIC_CONFIRM_DELTA_MM)
-        {
-            selected.kind = ULTRASONIC_SAMPLE_VALID_IN_RANGE;
-            selected.distanceMm = (uint16)(((uint32)first->distanceMm + (uint32)second->distanceMm + 1U) / 2U);
-            selected.echoUs = ((first->echoUs + second->echoUs + 1U) / 2U);
-            return selected;
-        }
-
-        selected.kind = ULTRASONIC_SAMPLE_BAD_MEASUREMENT;
-        selected.distanceMm = 0U;
-        selected.echoUs = 0U;
-        return selected;
-    }
-
-    if ((isDistanceSample(first) != FALSE) && (isDistanceSample(second) == FALSE))
-    {
-        return *first;
-    }
-
-    if ((isDistanceSample(first) == FALSE) && (isDistanceSample(second) != FALSE))
-    {
-        if (first->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT)
-        {
-            return *second;
-        }
-
-        if ((isOutOfRangeSample(first) != FALSE) &&
-            (second->distanceMm <= ULTRASONIC_EMERGENCY_DISTANCE_MM) &&
-            (isPublishedDistance(state->lastPublishedValue) != FALSE))
-        {
-            return *second;
-        }
-
-        return *first;
-    }
-
-    if ((isOutOfRangeSample(first) != FALSE) && (second->kind == ULTRASONIC_SAMPLE_BAD_MEASUREMENT))
-    {
-        return *first;
-    }
-
-    return *second;
-}
-
 static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample)
 {
+    uint32 elapsedMs = 0U;
+
     if (startMeasurement(sensorId) == FALSE)
     {
         return FALSE;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_ECHO_WAIT_MS));
+    do
+    {
+        uint32 waitMs = ULTRASONIC_ECHO_POLL_MS;
 
-    *sample = readMeasurementResult(&g_sensors[sensorId]);
+        if ((elapsedMs + waitMs) > ULTRASONIC_ECHO_WAIT_MS)
+        {
+            waitMs = ULTRASONIC_ECHO_WAIT_MS - elapsedMs;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(waitMs));
+        elapsedMs += waitMs;
+
+        *sample = readMeasurementResult(&g_sensors[sensorId]);
+
+        if (sample->kind != ULTRASONIC_SAMPLE_NO_ECHO)
+        {
+            break;
+        }
+    } while (elapsedMs < ULTRASONIC_ECHO_WAIT_MS);
+
     startGuardObservation(&g_sensors[sensorId]);
 
     return TRUE;
@@ -908,41 +544,23 @@ static void waitGuardObservation(uint8 sensorId)
 
 static void runSensorSlot(uint8 sensorId)
 {
-    UltrasonicSample first;
-    UltrasonicSample second;
-    UltrasonicSample selected;
+    UltrasonicSample sample;
 
-    if (g_filterState[sensorId].fault != FALSE)
+    if (g_sensorState[sensorId].fault != FALSE)
     {
         publishValue(sensorId, ULTRASONIC_ERROR);
         vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_SLOT_MS));
         return;
     }
 
-    if (runSingleMeasurement(sensorId, &first) == FALSE)
+    if (runSingleMeasurement(sensorId, &sample) == FALSE)
     {
         markSensorFault(sensorId);
         vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_SLOT_MS));
         return;
     }
 
-    selected = first;
-
-    if (shouldRetrySample(sensorId, &first) != FALSE)
-    {
-        waitGuardObservation(sensorId);
-
-        if (runSingleMeasurement(sensorId, &second) == FALSE)
-        {
-            markSensorFault(sensorId);
-            vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_SLOT_MS));
-            return;
-        }
-
-        selected = chooseSample(sensorId, &first, &second);
-    }
-
-    processSample(sensorId, &selected);
+    processSample(sensorId, &sample);
     waitGuardObservation(sensorId);
 }
 
@@ -961,7 +579,7 @@ static void Ultrasonic_InternalInit(void)
 
     for (uint8 i = 0U; i < ULTRASONIC_SENSOR_COUNT; i++)
     {
-        resetFilterState(i, now);
+        resetSensorState(i, now);
         g_distancesMm[i] = ULTRASONIC_NOT_UPDATED;
     }
 
@@ -996,7 +614,6 @@ static void Ultrasonic_InternalInit(void)
     }
 
     g_fireOrderIndex = 0U;
-    g_previousSlotHadLateEcho = FALSE;
     g_isInitialized = TRUE;
 }
 
