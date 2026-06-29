@@ -20,7 +20,7 @@
 #define ULTRASONIC_TRIGGER_SETTLE_US            (2U)
 #define ULTRASONIC_TRIGGER_PULSE_US             (10U)
 #define ULTRASONIC_ECHO_WAIT_MS                 (20U)
-#define ULTRASONIC_GUARD_MS                     (60U)
+#define ULTRASONIC_GUARD_MS                     (40U)
 #define ULTRASONIC_SLOT_MS                      (ULTRASONIC_ECHO_WAIT_MS + ULTRASONIC_GUARD_MS)
 
 #define ULTRASONIC_STALE_THRESHOLD_MS           (2000U)
@@ -199,6 +199,7 @@ static boolean isOutOfRangeSample(const UltrasonicSample *sample);
 static boolean shouldRetrySample(uint8 sensorId, const UltrasonicSample *sample);
 static UltrasonicSample chooseSample(uint8 sensorId, const UltrasonicSample *first, const UltrasonicSample *second);
 static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample);
+static void waitGuardObservation(uint8 sensorId);
 static void runSensorSlot(uint8 sensorId);
 static void Ultrasonic_InternalInit(void);
 
@@ -895,10 +896,14 @@ static boolean runSingleMeasurement(uint8 sensorId, UltrasonicSample *sample)
 
     *sample = readMeasurementResult(&g_sensors[sensorId]);
     startGuardObservation(&g_sensors[sensorId]);
-    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_GUARD_MS));
-    closeGuardObservation(sensorId);
 
     return TRUE;
+}
+
+static void waitGuardObservation(uint8 sensorId)
+{
+    vTaskDelay(pdMS_TO_TICKS(ULTRASONIC_GUARD_MS));
+    closeGuardObservation(sensorId);
 }
 
 static void runSensorSlot(uint8 sensorId)
@@ -925,6 +930,8 @@ static void runSensorSlot(uint8 sensorId)
 
     if (shouldRetrySample(sensorId, &first) != FALSE)
     {
+        waitGuardObservation(sensorId);
+
         if (runSingleMeasurement(sensorId, &second) == FALSE)
         {
             markSensorFault(sensorId);
@@ -936,6 +943,7 @@ static void runSensorSlot(uint8 sensorId)
     }
 
     processSample(sensorId, &selected);
+    waitGuardObservation(sensorId);
 }
 
 static void Ultrasonic_InternalInit(void)
