@@ -3,8 +3,8 @@
  * \brief I2C  basic functionality
  * \ingroup IfxLld_I2c
  *
- * \version iLLD_1_0_1_16_0_1
- * \copyright Copyright (c) 2023 Infineon Technologies AG. All rights reserved.
+ * \version iLLD_1_20_0
+ * \copyright Copyright (c) 2024 Infineon Technologies AG. All rights reserved.
  *
  *
  *
@@ -160,9 +160,247 @@ typedef enum
 
 /** \} */
 
+/** \brief set interrupt request
+ * Definition in Ifx.I2C.ISR.U
+ */
+typedef enum
+{
+    IfxI2c_InterruptRequest_lastSingleRequest = IFX_I2C_ISR_LSREQ_INT_OFF,   /**< \brief last single request interrupt */
+    IfxI2c_InterruptRequest_SingleRequest     = IFX_I2C_ISR_SREQ_INT_OFF,    /**< \brief single request interrupt */
+    IfxI2c_InterruptRequest_lastBurstRequest  = IFX_I2C_ISR_LBREQ_INT_OFF,   /**< \brief last burst request interrupt */
+    IfxI2c_InterruptRequest_burstRequest      = IFX_I2C_ISR_BREQ_INT_OFF,    /**< \brief burst request interrupt */
+    IfxI2c_InterruptRequest_i2cError          = IFX_I2C_ISR_I2C_ERR_INT_OFF, /**< \brief i2c error interrupt */
+    IfxI2c_InterruptRequest_i2cProtocol       = IFX_I2C_ISR_I2C_P_INT_OFF    /**< \brief i2c protocol interrupt */
+} IfxI2c_InterruptRequest;
+
+/** \brief Configure as master or slave
+ * Definition in Ifx_I2C.ADDRCFG.B.MnS
+ */
+typedef enum
+{
+    IfxI2c_MasterNotSlave_slave  = 0, /**< \brief sets as slave */
+    IfxI2c_MasterNotSlave_master = 1  /**< \brief sets as master */
+} IfxI2c_MasterNotSlave;
+
+/** \brief Selects RX burst size
+ * Definition in Ifx_I2C.FIFOCFG.B.RXBS
+ */
+typedef enum
+{
+    IfxI2c_RxBurstSize_1Word = 0,  /**< \brief one word */
+    IfxI2c_RxBurstSize_2Word = 1,  /**< \brief two word */
+    IfxI2c_RxBurstSize_4Word = 2   /**< \brief four word */
+} IfxI2c_RxBurstSize;
+
+/** \brief Selects RX FIFO alignment
+ * Definition in Ifx_I2C.FIFOCFG.B.RXFA
+ */
+typedef enum
+{
+    IfxI2c_RxFifoAlignment_byte     = 0,  /**< \brief byte aligned */
+    IfxI2c_RxFifoAlignment_halfWord = 1,  /**< \brief half word aligned */
+    IfxI2c_RxFifoAlignment_word     = 2   /**< \brief word aligned */
+} IfxI2c_RxFifoAlignment;
+
+/** \brief Selects RX FIFO flow control
+ * Definition in Ifx_I2C.FIFOCFG.B.RXFC
+ */
+typedef enum
+{
+    IfxI2c_RxFifoFlowControl_disable = 0,  /**< \brief rx fifo not as flow controller */
+    IfxI2c_RxFifoFlowControl_enable  = 1   /**< \brief rx fifo as flow controller */
+} IfxI2c_RxFifoFlowControl;
+
+/** \brief Selects TX burst size
+ * Definition in Ifx_I2C.FIFOCFG.B.TXBS
+ */
+typedef enum
+{
+    IfxI2c_TxBurstSize_1Word = 0,  /**< \brief one word */
+    IfxI2c_TxBurstSize_2Word = 1,  /**< \brief two word */
+    IfxI2c_TxBurstSize_4Word = 2   /**< \brief four word */
+} IfxI2c_TxBurstSize;
+
+/** \brief Selects TX FIFO alignment
+ * Definition in Ifx_I2C.FIFOCFG.B.TXFA
+ */
+typedef enum
+{
+    IfxI2c_TxFifoAlignment_byte     = 0,  /**< \brief byte aligned */
+    IfxI2c_TxFifoAlignment_halfWord = 1,  /**< \brief half word aligned */
+    IfxI2c_TxFifoAlignment_word     = 2   /**< \brief word aligned */
+} IfxI2c_TxFifoAlignment;
+
+/** \brief Selects TX FIFO flow control
+ * Definition in Ifx_I2C.FIFOCFG.B.TXFC
+ */
+typedef enum
+{
+    IfxI2c_TxFifoFlowControl_disable = 0,  /**< \brief tx fifo not as flow controller */
+    IfxI2c_TxFifoFlowControl_enable  = 1   /**< \brief tx fifo as flow controller */
+} IfxI2c_TxFifoFlowControl;
+
+/**
+ * \brief SDA Delay Stages for Data Hold Time in Standard and Fast modes
+ * Definition in Ifx_I2C.TIMCFG.B.SDA_DEL_HD_DAT
+ */
+typedef enum
+{
+	IfxI2c_SdaDelayStages_3 = 0,
+    IfxI2c_SdaDelayStages_4,
+    IfxI2c_SdaDelayStages_5,
+    IfxI2c_SdaDelayStages_6,
+    IfxI2c_SdaDelayStages_7,
+    IfxI2c_SdaDelayStages_8,
+    IfxI2c_SdaDelayStages_9,
+    IfxI2c_SdaDelayStages_10,
+    IfxI2c_SdaDelayStages_11,
+    IfxI2c_SdaDelayStages_12,
+    IfxI2c_SdaDelayStages_13,
+    IfxI2c_SdaDelayStages_14,
+    IfxI2c_SdaDelayStages_15,
+    IfxI2c_SdaDelayStages_16,
+    IfxI2c_SdaDelayStages_17,
+    IfxI2c_SdaDelayStages_18,
+    IfxI2c_SdaDelayStages_19,
+    IfxI2c_SdaDelayStages_20,
+    IfxI2c_SdaDelayStages_21,
+    IfxI2c_SdaDelayStages_22,
+    IfxI2c_SdaDelayStages_23,
+    IfxI2c_SdaDelayStages_24,
+    IfxI2c_SdaDelayStages_25,
+    IfxI2c_SdaDelayStages_26,
+    IfxI2c_SdaDelayStages_27,
+    IfxI2c_SdaDelayStages_28,
+    IfxI2c_SdaDelayStages_29,
+    IfxI2c_SdaDelayStages_30,
+    IfxI2c_SdaDelayStages_31,
+    IfxI2c_SdaDelayStages_32,
+    IfxI2c_SdaDelayStages_33,
+    IfxI2c_SdaDelayStages_34,
+    IfxI2c_SdaDelayStages_35,
+    IfxI2c_SdaDelayStages_36,
+    IfxI2c_SdaDelayStages_37,
+    IfxI2c_SdaDelayStages_38,
+    IfxI2c_SdaDelayStages_39,
+    IfxI2c_SdaDelayStages_40,
+    IfxI2c_SdaDelayStages_41,
+    IfxI2c_SdaDelayStages_42,
+    IfxI2c_SdaDelayStages_43,
+    IfxI2c_SdaDelayStages_44,
+    IfxI2c_SdaDelayStages_45,
+    IfxI2c_SdaDelayStages_46,
+    IfxI2c_SdaDelayStages_47,
+    IfxI2c_SdaDelayStages_48,
+    IfxI2c_SdaDelayStages_49,
+    IfxI2c_SdaDelayStages_50,
+    IfxI2c_SdaDelayStages_51,
+    IfxI2c_SdaDelayStages_52,
+    IfxI2c_SdaDelayStages_53,
+    IfxI2c_SdaDelayStages_54,
+    IfxI2c_SdaDelayStages_55,
+    IfxI2c_SdaDelayStages_56,
+    IfxI2c_SdaDelayStages_57,
+    IfxI2c_SdaDelayStages_58,
+    IfxI2c_SdaDelayStages_59,
+    IfxI2c_SdaDelayStages_60,
+    IfxI2c_SdaDelayStages_61,
+    IfxI2c_SdaDelayStages_62,
+    IfxI2c_SdaDelayStages_63,
+    IfxI2c_SdaDelayStages_64,
+    IfxI2c_SdaDelayStages_65,
+    IfxI2c_SdaDelayStages_66
+} IfxI2c_SdaDelayStages;
+
+/**
+ * \brief SDA Delay Stages for Data Hold Time in High-speed Mode
+ * Definition in Ifx_I2C.TIMCFG.B.HS_SDA_DEL_HD_DAT
+ */
+typedef enum
+{
+	IfxI2c_SdaHsModeDelayStages_3 = 0,
+	IfxI2c_SdaHsModeDelayStages_4,
+	IfxI2c_SdaHsModeDelayStages_5,
+	IfxI2c_SdaHsModeDelayStages_6,
+	IfxI2c_SdaHsModeDelayStages_7,
+	IfxI2c_SdaHsModeDelayStages_8,
+	IfxI2c_SdaHsModeDelayStages_9,
+	IfxI2c_SdaHsModeDelayStages_10
+} IfxI2c_SdaHsModeDelayStages;
+
+/**
+ * \brief SCL Delay Stages for Hold Time Start (Restart) Bit
+ * Definition in Ifx_I2C.TIMCFG.B.SCL_DEL_HD_STA
+ */
+typedef enum
+{
+	IfxI2c_SclDelayStages_12 = 0,
+	IfxI2c_SclDelayStages_13,
+	IfxI2c_SclDelayStages_14,
+	IfxI2c_SclDelayStages_15,
+	IfxI2c_SclDelayStages_16,
+	IfxI2c_SclDelayStages_17,
+	IfxI2c_SclDelayStages_18,
+	IfxI2c_SclDelayStages_19
+} IfxI2c_SclDelayStages;
+
+/**
+ * \brief SDA Delay Stages for Start/Stop bit in High-speed Mode
+ * Definition in Ifx_I2C.TIMCFG.B.HS_SDA_DEL
+ */
+typedef enum
+{
+	IfxI2c_SdaHsModeStartStopDelayStages_3 = 0,
+	IfxI2c_SdaHsModeStartStopDelayStages_4,
+	IfxI2c_SdaHsModeStartStopDelayStages_5,
+	IfxI2c_SdaHsModeStartStopDelayStages_6,
+	IfxI2c_SdaHsModeStartStopDelayStages_7,
+	IfxI2c_SdaHsModeStartStopDelayStages_8,
+	IfxI2c_SdaHsModeStartStopDelayStages_9,
+	IfxI2c_SdaHsModeStartStopDelayStages_10
+} IfxI2c_SdaHsModeStartStopDelayStages;
+
 /******************************************************************************/
 /*-----------------------------Data Structures--------------------------------*/
 /******************************************************************************/
+
+/** \brief Structure for Address configuration register
+ */
+typedef struct
+{
+    uint32             slaveAddress;               /**< \brief slave address, use default value 0 when used in master mode */
+    IfxI2c_AddressMode addressMode;                /**< \brief Ten bit address mode */
+    boolean            generalCallEnable;          /**< \brief General call enable */
+    boolean            masterCodeEnable;           /**< \brief Master code enable */
+    boolean            stopOnNotAcknowledge;       /**< \brief stop on Not-acknowledge */
+    boolean            stopOnPacketEnd;            /**< \brief stop on packet end */
+} IfxI2c_AddrConfig;
+
+/** \brief Structure for FIFO configuration register
+ */
+typedef struct
+{
+    IfxI2c_RxBurstSize       rxBurstSize;                /**< \brief rx burst size */
+    IfxI2c_TxBurstSize       txBurstSize;                /**< \brief tx burst size */
+    IfxI2c_RxFifoAlignment   rxFifoAlignment;            /**< \brief rx fifo alignment */
+    IfxI2c_TxFifoAlignment   txFifoAlignment;            /**< \brief tx fifo alignment */
+    IfxI2c_RxFifoFlowControl rxFifoFlowControl;          /**< \brief rx fifo flow control */
+    IfxI2c_TxFifoFlowControl txFifoFlowControl;          /**< \brief tx fifo flow control */
+    boolean                  clearRequestBehavior;       /**< \brief clear request behavior configuration */
+} IfxI2c_FifoConfig;
+
+/** \brief Structure for Timing configuration
+ */
+typedef struct
+{
+	IfxI2c_SdaDelayStages                 sdaDelHdDat;      	/**< \brief SDA Delay Stages for Data Hold Time in Standard and Fast modes (6-bits) */
+	IfxI2c_SdaHsModeDelayStages           hsSdaDelHdDat; 		/**< \brief SDA Delay Stages for Data Hold Time in High-Speed Mode (3-bits) */
+	IfxI2c_SclDelayStages                 sclDelHdSta;      	/**< \brief SCL Delay Stages for Hold Time Start (Restart) Bit (3-bits) */
+	boolean                               enSclLowLen;     	    /**< \brief Enable Direct Configuration of SCL Low Period Length in Fast Mode (1-bit) */
+	boolean                               fsSclLow;        	    /**< \brief Set Fast Mode SCL Low Period Timing (1-bit) */
+	IfxI2c_SdaHsModeStartStopDelayStages  hsSdaDel; 	        /**< \brief SDA Delay Stages for Start/Stop Bit in High-Speed Mode (5-bits) */
+    uint8 								  sclLowLen;        	/**< \brief SCL Low Period Length in Fast Mode (8-bits) */
+} IfxI2c_TimingConfig;
 
 /** \addtogroup IfxLld_I2c_Std_structures
  * \{ */
@@ -177,6 +415,14 @@ typedef struct
 
 /** \} */
 
+/** \brief Structure for Address and FIFO configuration registers
+ */
+typedef struct
+{
+    IfxI2c_AddrConfig addressConfig;       /**< \brief address config */
+    IfxI2c_FifoConfig fifoConfig;          /**< \brief fifo config */
+} IfxI2c_Config;
+
 /** \addtogroup IfxLld_I2c_Std_functions
  * \{ */
 
@@ -184,246 +430,395 @@ typedef struct
 /*-------------------------Inline Function Prototypes-------------------------*/
 /******************************************************************************/
 
-/** \brief Returns if the bus is free
+/**
+ * \brief Checks if the I2C bus is currently free for new transactions.
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval TRUE  The bus is free and ready for new transactions.
+ *         FALSE The bus is currently busy and cannot accept new transactions.
  */
 IFX_INLINE boolean IfxI2c_busIsFree(Ifx_I2C *i2c);
 
-/** \brief clears all DTR interrupt sources
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Clears all DTR (Data Transfer Ready) Interrupt Sources for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearAllDtrInterruptSources(Ifx_I2C *i2c);
 
-/** \brief clears all Error Interrupt sources
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Clears all Error Interrupt Sources for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearAllErrorInterruptSources(Ifx_I2C *i2c);
 
-/** \brief Clears all Protocol Interrupt sources
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Clears all Protocol Interrupt Sources for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearAllProtocolInterruptSources(Ifx_I2C *i2c);
 
-/** \brief clears the specified source of DTR interrupt
- * \param i2c pointer to i2c registers
- * \param source DTR interrupt source
- * \return None
+/**
+ * \brief Clears the specified source of DTR (Data Transfer Ready) Interrupt for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source DTR interrupt Source to be cleared.
+ * 				        Range: \ref IfxI2c_DtrInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearDtrInterruptSource(Ifx_I2C *i2c, IfxI2c_DtrInterruptSource source);
 
-/** \brief clears the specified source of error interrupt
- * \param i2c pointer to i2c registers
- * \param source error interrupt source
- * \return None
+/**
+ * \brief Clears the specified source of Error Interrupt for the I2C instance.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source Error interrupt Source to be cleared.
+ * 					    Range: \ref IfxI2c_ErrorInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearErrorInterruptSource(Ifx_I2C *i2c, IfxI2c_ErrorInterruptSource source);
 
-/** \brief clears the specified source of protocol interrupt
- * \param i2c pointer to i2c registers
- * \param source protocol interrupt source
- * \return None
+/**
+ * \brief Clears the specified source of Protocol Interrupt for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source Protocol interrupt Source to be cleared.
+ *                      Range: \ref IfxI2c_ProtocolInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearProtocolInterruptSource(Ifx_I2C *i2c, IfxI2c_ProtocolInterruptSource source);
 
-/** \brief Data request is cleared automatically
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Clears the data Request Buffer for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_clearRequestBuffer(Ifx_I2C *i2c);
 
-/** \brief disables the specified source of DTR interupt
- * \param i2c pointer to i2c registers
- * \param source DTR interrupt source
- * \return None
+/**
+ * \brief Disables the specified source of DTR (Data Transfer Ready) Interrupt for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param [in]   source DTR Interrupt Source to disable.
+ *             		    Range: \ref IfxI2c_DtrInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_disableDtrInterruptSource(Ifx_I2C *i2c, IfxI2c_DtrInterruptSource source);
 
-/** \brief disables the error interrupt flag
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Disables the Error Interrupt Flag for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_disableErrorInterruptFlag(Ifx_I2C *i2c);
 
-/** \brief disables the specified source of error interrupt
- * \param i2c pointer to i2c registers
- * \param source error interrupt source
- * \return None
+/**
+ * \brief Disables the specified source of Error Interrupt for the I2C instance.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source Error Interrupt Source to disable.
+ * 					    Range: \ref IfxI2c_ErrorInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_disableErrorInterruptSource(Ifx_I2C *i2c, IfxI2c_ErrorInterruptSource source);
 
-/** \brief disables the Protocol interrupt flag
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Disables the Protocol Interrupt Flag for the specified I2C instance.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_disableProtocolInterruptFlag(Ifx_I2C *i2c);
 
-/** \brief disables the specified source of protocol interrupt
- * \param i2c pointer to i2c registers
- * \param source protocol interrupt source
- * \return None
+/**
+ * \brief Disables the specified Protocol Interrupt Source for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source The Protocol Interrupt Source to disable.
+ * 				        Range: \ref IfxI2c_ProtocolInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_disableProtocolInterruptSource(Ifx_I2C *i2c, IfxI2c_ProtocolInterruptSource source);
 
-/** \brief enables the specified source of DTR interupt
- * \param i2c pointer to i2c registers
- * \param source DTR interrupt source
- * \return None
+/**
+ * \brief Enables the specified DTR (Data Transfer Request) Interrupt Source for the given I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source DTR Interrupt Source to enable.
+ * 					    Range: \ref IfxI2c_DtrInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_enableDtrInterruptSource(Ifx_I2C *i2c, IfxI2c_DtrInterruptSource source);
 
-/** \brief enables the error interrupt flag
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Enables the Error Interrupt Flag for the I2C module.
+ * 
+ * \param[inout] i2c Pointer to the I2C module handle.
+ * 
+ * \retval None
  */
 IFX_INLINE void IfxI2c_enableErrorInterruptFlag(Ifx_I2C *i2c);
 
-/** \brief enables the specified source of error interrupt
- * \param i2c pointer to i2c registers
- * \param source error interrupt source
- * \return None
+/**
+ * \brief Enables the specified source of Error Interrupt for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source Error Interrupt Source to enable.
+ * 					    Range: \ref IfxI2c_ErrorInterruptSource
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_enableErrorInterruptSource(Ifx_I2C *i2c, IfxI2c_ErrorInterruptSource source);
 
-/** \brief enables the protocol interrupt flag
- * \param i2c pointer to I2C registers
- * \return None
+/**
+ * \brief Enables the Protocol Interrupt Flag for the I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module handle.
+ * 
+ * \retval None
  */
 IFX_INLINE void IfxI2c_enableProtocolInterruptFlag(Ifx_I2C *i2c);
 
-/** \brief enables the specified source of protocol interrupt
- * \param i2c pointer to I2C registers
- * \param source protocol interrupt source
- * \return None
+/**
+ * \brief Enables the specified source of Protocol Interrupt for I2C communication.
+ *
+ * \param[inout] i2c    Pointer to the I2C module handle.
+ * \param[in]    source The Protocol Interrupt Source to be enabled.
+ *					    Range: \ref IfxI2c_ProtocolInterruptSource
+ * \retval None
  */
 IFX_INLINE void IfxI2c_enableProtocolInterruptSource(Ifx_I2C *i2c, IfxI2c_ProtocolInterruptSource source);
 
 /**
- * \param i2c pointer to i2c registers
- * \return BusStatus
+ * \brief Retrieves the current status of the I2C Bus.
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval IfxI2c_BusStatus The current status of the I2C Bus. Possible Bus staus:
+ * 							(\ref IfxI2c_BusStatus)
+ * 							- IfxI2c_BusStatus_idle  		I2C-bus is free (no start condition detected).
+ * 							- IfxI2c_BusStatus_started      A start condition has been detected on the bus (bus busy).
+ * 							- IfxI2c_BusStatus_busyMaster   The device is working as master and has claimed the control on the I2C-bus (busy master).
+ * 							- IfxI2c_BusStatus_remoteSlave  A remote master has accessed this device as slave.
  */
 IFX_INLINE IfxI2c_BusStatus IfxI2c_getBusStatus(Ifx_I2C *i2c);
 
-/** \brief Returns the SRC pointer for I2C DTR interrupt
- * \param i2c pointer to i2c registers
- * \return SRC pointer for I2C DTR interrupt
+/**
+ * \brief Returns the SRC pointer for I2C DTR (Data Transmit Ready) interrupt
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval Ifx_SRC_SRCR* Pointer to the SRC register for I2C DTR interrupt
  */
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getDtrSrcPointer(Ifx_I2C *i2c);
 
-/** \brief returns the status of specified DTR interrupt source
- * \param i2c pointer to i2c registers
- * \param source DTR interrupt source
- * \return status
+/**
+ * \brief Retrieves the current raw status of a specified DTR (Data Transfer Request) Interrupt Source.
+ *
+ * \param[in] i2c    Pointer to the I2C module handle.
+ * \param[in] source The DTR Interrupt Source to check.
+ * 					 Range: \ref IfxI2c_DtrInterruptSource
+ *
+ * \retval TRUE  The specified DTR Interrupt Source is active.
+ *         FALSE The specified DTR Interrupt Source is not active.
  */
 IFX_INLINE boolean IfxI2c_getDtrinterruptSourceStatus(Ifx_I2C *i2c, IfxI2c_DtrInterruptSource source);
 
-/** \brief returns the current status of error interrupt flag
- * \param i2c pointer to i2c registers
- * \return status
+/**
+ * \brief Returns the current status of the Error Interrupt Flag.
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval TRUE  The Error Interrupt Flag is set.
+ * 		   FALSE The Error Interrupt Flag is not set.
  */
 IFX_INLINE boolean IfxI2c_getErrorInterruptFlagStatus(Ifx_I2C *i2c);
 
-/** \brief returns the status of the error interrupt source
- * \param i2c pointer to i2c registers
- * \param source error interrupt source
- * \return status
+/**
+ * \brief Indicates whether a specific Error Interrupt Source is active.
+ *
+ * \param[in] i2c    Pointer to the I2C module handle.
+ * \param[in] source The Error Interrupt Source to check.
+ *					 Range: \ref IfxI2c_ErrorInterruptSource
+ *
+ * \retval TRUE  The specified Error Interrupt Source is active.
+ *         FALSE The specified Error Interrupt Source is not active.
  */
 IFX_INLINE boolean IfxI2c_getErrorInterruptSourceStatus(Ifx_I2C *i2c, IfxI2c_ErrorInterruptSource source);
 
-/** \brief Returns the SRC pointer for I2C Error interrupt
- * \param i2c pointer to i2c registers
- * \return SRC pointer for I2C Error Service interrupt
+/**
+ * \brief Returns the SRC pointer for I2C Error interrupt
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval Ifx_SRC_SRCR* Pointer to the SRCR (Service Request Control Register) for the I2C Error Service interrupt.
  */
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getErrorSrcPointer(Ifx_I2C *i2c);
 
-/** \brief returns the current raw status of protocol interrupt
- * \param i2c pointer to i2c registers
- * \return status
+/**
+ * \brief Indicates whether the Protocol Interrupt is currently active.
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval TRUE  The Protocol Interrupt Flag is set (active).
+ *         FALSE The Protocol Interrupt Flag is not set (inactive).
  */
 IFX_INLINE boolean IfxI2c_getProtocolInterruptFlagStatus(Ifx_I2C *i2c);
 
-/** \brief returns the status of  specified protocol interrupt source
- * \param i2c pointer to i2c registers
- * \param source protocol interrupt source
- * \return status
+/**
+ * \brief Checks and returns the status of a specified Protocol Interrupt Source.
+ *
+ * \param[in] i2c    Pointer to the I2C module handle.
+ * \param[in] source The Protocol Interrupt Source to check.
+ * 					 Range: \ref IfxI2c_ProtocolInterruptSource
+ *
+ * \retval TRUE  The specified Protocol Interrupt Source is active.
+ * 		   FALSE The specified Protocol Interrupt Source is not active.
  */
 IFX_INLINE boolean IfxI2c_getProtocolInterruptSourceStatus(Ifx_I2C *i2c, IfxI2c_ProtocolInterruptSource source);
 
-/** \brief Returns the SRC pointer for I2C Protocol interrupt
- * \param i2c pointer to i2c registers
- * \return SRC pointer for I2C Protocol Service interrupt
+/**
+ * \brief Returns the SRC pointer for the I2C Protocol interrupt.
+ *
+ * \param[in] i2c Pointer to the I2C module handle.
+ *
+ * \retval Ifx_SRC_SRCR * Pointer to the SRCR register for the I2C Protocol interrupt.
  */
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getProtocolSrcPointer(Ifx_I2C *i2c);
 
-/** \brief Returns if the Fifo is requesting new data
+/**
+ * \brief Indicates whether the Fifo is requesting new data to be sent.
+ *
+ * \param[in] i2c Pointer to the I2C module instance.
+ *
+ * \retval TRUE  If the Fifo is requesting new data.
+ * 		   FALSE If the Fifo is not requesting new data.
  */
 IFX_INLINE boolean IfxI2c_isFifoRequest(Ifx_I2C *i2c);
 
 /**
- * \param i2c pointer to i2c registers
- * \return None
+ * \brief Runs the I2C module, initializing it for communication.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_run(Ifx_I2C *i2c);
 
-/** \brief Sets width of I2C address to 7 or 10 bits
- * \param i2c pointer to i2c registers
- * \param mode selects 7 or 10 bits address
- * \return None
+/**
+ * \brief Configures the I2C Address width to 7 or 10 bits.
+ *
+ * \param[inout] i2c  Pointer to the I2C module instance.
+ * \param[in]    mode Selects width of address bits (7-bit or 10-bit).
+ *                    Range: \ref IfxI2c_AddressMode
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setBitAddressMode(Ifx_I2C *i2c, IfxI2c_AddressMode mode);
 
-/** \brief selects the pin
- * \param i2c pointer to i2c registers
- * \param pisel pin to be select
- * \return None
+/**
+ * \brief Selects the Pin for I2C communication.
+ *
+ * \param[inout] i2c   Pointer to the I2C module instance.
+ * \param[in]    pisel Pin selection to be configured.
+ * 					   Range: \ref IfxI2c_PinSelect
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setPinSelection(Ifx_I2C *i2c, IfxI2c_PinSelect pisel);
 
-/** \brief Sets the number of bytes to be received
- * \param i2c pointer to i2c registers
- * \param size number of packets
- * \return None
+/**
+ * \brief Sets the number of bytes to be received in a packet for the I2C module.
+ *
+ * \param[inout] i2c  Pointer to the I2C module instance.
+ * \param[in]    size The number of bytes to be received in a packet. This value determines
+ *                    the size of the receive buffer for the I2C module.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setReceivePacketSize(Ifx_I2C *i2c, Ifx_SizeT size);
 
 /**
- * \param i2c pointer to i2c registers
- * \param address device address
- * \return None
+ * \brief Sets the Slave Device Address for I2C communication.
+ *
+ * \param[inout] i2c     Pointer to the I2C module instance.
+ * \param[in]    address The slave device address to be set. Depending on setting of TBAM(Ten bit Address Mode),
+ *            	         this is either a 7-bit address (bits [7:1]) or a 10-bit address (bits [9:0])
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setSlaveDeviceAddress(Ifx_I2C *i2c, uint16 address);
 
-/** \brief Sets the sensitivity of the module to sleep signal
- * \param i2c pointer to i2c registers
- * \param mode mode selection (enable / disable)
- * \return None
+/**
+ * \brief Configures the I2C module's sensitivity to sleep signals.
+ *
+ * \param[inout] i2c  Pointer to the I2C module instance.
+ * \param[in]    mode Sleep mode configuration.
+ * 				      Range: \ref IfxI2c_SleepMode
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setSleepMode(Ifx_I2C *i2c, IfxI2c_SleepMode mode);
 
-/** \brief Sets the number of bytes to be tansmitted
- * \param i2c pointer to i2c registers
- * \param size number of packets
- * \return None
+/** \brief Sets the number of bytes to be transmitted in a packet.
+ *
+ * \param[inout] i2c  Pointer to the I2C module instance.
+ * \param[in]    size Number of bytes to be transmitted in a packet (non-negative integer).
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_setTransmitPacketSize(Ifx_I2C *i2c, Ifx_SizeT size);
 
 /**
- * \param i2c pointer to i2c registers
- * \return None
+ * \brief Stops the I2C communication.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_stop(Ifx_I2C *i2c);
-
 /**
- * \param i2c pointer to i2c registers
- * \return None
+ * \brief Waits until the I2C Bus is free.
+ *
+ * \param[in] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_waitBusFree(Ifx_I2C *i2c);
 
-/** \brief Writes a packet (4 bytes) into the Fifo
- * \param i2c pointer to i2c registers
- * \param packet specifies the byte to be transfer
- * \return None
+/**
+ * \brief Writes a 4-byte packet into the I2C Fifo for transmission.
+ *
+ * \param[inout] i2c    Pointer to the I2C module instance.
+ * \param[in]    packet A 32-bit value containing the 4 bytes to be written into the FIFO. The bytes are written in the order:
+ * 					    - Byte 0: Most significant byte of the packet
+ * 					    - Byte 1: Next most significant byte of the packet
+ * 					    - Byte 2: Next least significant byte of the packet
+ * 					    - Byte 3: Least significant byte of the packet
+ * 					    Range: 0x8000H to 0xBFFCH
+ *
+ * \retval None
  */
 IFX_INLINE void IfxI2c_writeFifo(Ifx_I2C *i2c, uint32 packet);
 
@@ -431,104 +826,213 @@ IFX_INLINE void IfxI2c_writeFifo(Ifx_I2C *i2c, uint32 packet);
 /*-------------------------Global Function Prototypes-------------------------*/
 /******************************************************************************/
 
-/** \brief Configures the Module as Master
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Configures the I2C module to operate as a Master.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_configureAsMaster(Ifx_I2C *i2c);
 
-/** \brief Disables the I2c Module
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Disables the I2C module, stopping all communication and resetting the module to its initial state.
+ *
+ * \param[in] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_disableModule(Ifx_I2C *i2c);
 
-/** \brief enables the DTR interrupt
- * \param i2c pointer to i2c registers
- * \param typeOfService Type of Service (Cpu or DMA)
- * \param priority priority of the interrupt
- * \return None
+/**
+ * \brief Enables the DTR (Data Transfer Request) Interrupt for the specified I2C instance.
+ *
+ * \param[in] i2c           Pointer to the I2C module instance.
+ * \param[in] typeOfService Type of service to be used for the interrupt handling.
+ * 							This can be either CPU based handling or
+ * 							DMA based handling (\ref IfxSrc_Tos_dma).
+ * 							Range: \ref IfxSrc_Tos
+ * \param[in] priority      The priority level for the interrupt.
+ *							Range: 0x00 to 0xFF
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_enableDtrInterrupt(Ifx_I2C *i2c, IfxSrc_Tos typeOfService, uint16 priority);
 
-/** \brief Enables the Error interrupt
- * \param i2c pointer to i2c registers
- * \param typeOfService Type of Service (Cpu or DMA)
- * \param priority priority of the interrupt
- * \return None
+/**
+ * \brief Enables the Error Interrupt for the I2C module
+ *
+ * \param[in] i2c           Pointer to the I2C module instance.
+ * \param[in] typeOfService Type of service to be used for the interrupt handling.
+ * 							This can be either CPU based handling or
+ * 							DMA based handling (\ref IfxSrc_Tos_dma).
+ * 							Range: \ref IfxSrc_Tos
+ * \param[in] priority      Priority level for the interrupt.
+ * 							Range: 0x00 to 0xFF
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_enableErrorInterrupt(Ifx_I2C *i2c, IfxSrc_Tos typeOfService, uint16 priority);
 
-/** \brief Enables the I2c Module
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Enables the specified I2C module.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_enableModule(Ifx_I2C *i2c);
 
-/** \brief Enables the protocol interrupt
- * \param i2c pointer to i2c registers
- * \param typeOfService Type of Service (Cpu or DMA)
- * \param priority Priority of the interrupt
- * \return None
+/**
+ * \brief Enables the protocol interrupt for handling I2C communication events.
+ *
+ * \param[in] i2c           Pointer to the I2C module instance.
+ * \param[in] typeOfService Type of service to be used for the interrupt handling.
+ * 							This can be either CPU based handling or
+ * 							DMA based handling (\ref IfxSrc_Tos_dma).
+ * 							Range: \ref IfxSrc_Tos
+ * \param[in] priority      Priority level for the interrupt.
+ * 							Range: 0x00 to 0xFF
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_enableProtocolInterrupt(void *i2c, IfxSrc_Tos typeOfService, uint16 priority);
 
 /**
- * \param i2c Resource index of the I2c
- * \return I2C module register address
+ * \brief Retrieves the base Address of the I2C module corresponding to the given index.
+ *
+ * \param[in] i2c Resource index of the I2C module.
+ * 				  Range: \ref IfxI2c_Index
+ *
+ * \retval Ifx_I2C* Pointer to the I2C module's register base address.
  */
 IFX_EXTERN Ifx_I2C *IfxI2c_getAddress(IfxI2c_Index i2c);
 
-/** \brief Returns the real Baudrate
- * \return Baudrate
+/**
+ * \brief Returns the actual Baudrate configured for the I2C module.
+ *
+ * \param[in] i2c Pointer to the I2C module instance.
+ *
+ * \retval float32 The actual Baudrate configured for the I2C module in Hz.
  */
 IFX_EXTERN float32 IfxI2c_getBaudrate(Ifx_I2C *i2c);
 
-/** \brief API to get the resource index of the I2C specified.
- * \param i2c Pointer to the I2C HW module (register memory map)
- * \return Resource index of the I2C
+/**
+ * \brief Retrieves the resource Index of the specified I2C module.
+ *
+ * \param[in] i2c Pointer to the I2C module instance.
+ *
+ * \retval IfxI2c_Index The resource Index of the I2C module.
+ * 						(\ref IfxI2c_Index)
+ * 						- IfxI2c_Index_none I2C index not Selected.
+ * 						- IfxI2c_Index_0    I2C Index 0
+ * 						- IfxI2c_Index_1    I2C Index 1
  */
 IFX_EXTERN IfxI2c_Index IfxI2c_getIndex(Ifx_I2C *i2c);
 
 /**
- * \return None
+ * \brief Initializes the SCL and SDA pins for I2C communication.
+ *
+ * \param[in] scl 	 	Pointer to the SCL pin configuration structure.
+ * \param[in] sda 		Pointer to the SDA pin configuration structure.
+ * \param[in] padDriver The pad driver mode to be used for the SCL and SDA pins.
+ * 						Range: \ref IfxPort_PadDriver
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_initSclSdaPin(const IfxI2c_Scl_InOut *scl, const IfxI2c_Sda_InOut *sda, IfxPort_PadDriver padDriver);
 
-/** \brief Releases the bus, i.e puts a stop condition on the bus
- * \return None
+/**
+ * \brief Releases the Bus by generating a stop condition.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_releaseBus(Ifx_I2C *i2c);
-
 /**
- * \return None
+ * \brief Resets the Fifo buffer of the I2C module to its initial state.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_resetFifo(Ifx_I2C *i2c);
 
-/** \brief resets the I2c kernel
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Resets the I2C Module to its initial state.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_resetModule(Ifx_I2C *i2c);
 
-/** \brief Calculates the desired baudrate
- * \param i2c pointer to i2c registers
- * \param baudrate specifies the baud rate
- * \return None
+/**
+ * \brief Configures the I2C module to operate at the specified Baudrate
+ *
+ * \param[inout] i2c      Pointer to the I2C module instance.
+ * \param[in]    baudrate Desired Baudrate in Hz for the I2C communication.
+ *                        Range: StandardandFast mode up to 400 kHz/s (20kHz/s - 400kHz/s)
+ *                               High-speed mode up to 3.4 Mbit/s (500kHz/s - 3.4MHz/s)
+ *
+ * \retval None
  */
 IFX_EXTERN void IfxI2c_setBaudrate(Ifx_I2C *i2c, float32 baudrate);
 
 /** \} */
 
 /******************************************************************************/
+/*-------------------------Inline Function Prototypes-------------------------*/
+/******************************************************************************/
+
+/**
+ * \brief Configures the Interrupt Request source for the I2C module.
+ *
+ * \param[inout] i2c    Pointer to the I2C module instance.
+ * \param[in]    source The Interrupt Request source to be configured. This parameter determines which I2C events will generate an interrupt.
+ * 					    Range: \ref IfxI2c_InterruptRequest
+ *
+ * \retval None
+ */
+IFX_INLINE void IfxI2c_setInterruptRequest(Ifx_I2C *i2c, IfxI2c_InterruptRequest source);
+
+/******************************************************************************/
 /*-------------------------Global Function Prototypes-------------------------*/
 /******************************************************************************/
 
-/** \brief Configure the i2c master to high speed mode baudrate > 400kbits/s
- * \param i2c pointer to i2c registers
- * \return None
+/**
+ * \brief Configures the I2C module to operate in Slave mode.
+ *
+ * \param[inout] i2c Pointer to the I2C module instance.
+ *
+ * \retval None
  */
-IFX_EXTERN void IfxI2c_configureHighSpeedMode(Ifx_I2C *i2c);
+IFX_EXTERN void IfxI2c_configureAsSlave(Ifx_I2C *i2c);
+
+/**
+ * \brief Configures the Address and Fifo registers for the I2C module according to the provided configuration.
+ *
+ * \param[inout] i2c    Pointer to the I2C module instance.
+ * \param[in]    config Pointer to the configuration structure containing the address and fifo settings.
+ *
+ * \retval None
+ */
+IFX_EXTERN void IfxI2c_configureAddrFifo(Ifx_I2C *i2c, const IfxI2c_Config *config);
+
+/**
+ * \brief Configures the Timing of the I2C-bus signals SCL and SCA for the I2C module.
+ *
+ * \param[inout] i2c 	      Pointer to the I2C module instance.
+ * \param[in]    timingConfig Pointer to a structure containing the timing configuration parameters.
+ * 						      The structure includes settings for SDA and SCL delays in different modes,
+ * 						      as well as control flags for specific timing features.
+ *
+ * \retval None
+ *
+ * \note If the timing configuration is not explicitly set by the user, default values for the TIMCFG register
+ *       are set in the \ref IfxI2c_setBaudrate API.
+ */
+IFX_EXTERN void IfxI2c_configureTiming(Ifx_I2C *i2c, const IfxI2c_TimingConfig *timingConfig);
 
 /******************************************************************************/
 /*---------------------Inline Function Implementations------------------------*/
@@ -657,6 +1161,7 @@ IFX_INLINE IfxI2c_BusStatus IfxI2c_getBusStatus(Ifx_I2C *i2c)
 
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getDtrSrcPointer(Ifx_I2C *i2c)
 {
+#if IFXI2C_NUM_MODULES > 1
     if (i2c == &MODULE_I2C0)
     {
         return &MODULE_SRC.I2C.I2C[0].DTR;
@@ -665,6 +1170,9 @@ IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getDtrSrcPointer(Ifx_I2C *i2c)
     {
         return &MODULE_SRC.I2C.I2C[1].DTR;
     }
+#else
+    return &MODULE_SRC.I2C.I2C[0].DTR;
+#endif
 }
 
 
@@ -688,6 +1196,7 @@ IFX_INLINE boolean IfxI2c_getErrorInterruptSourceStatus(Ifx_I2C *i2c, IfxI2c_Err
 
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getErrorSrcPointer(Ifx_I2C *i2c)
 {
+#if IFXI2C_NUM_MODULES > 1
     if (i2c == &MODULE_I2C0)
     {
         return &MODULE_SRC.I2C.I2C[0].ERR;
@@ -696,6 +1205,9 @@ IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getErrorSrcPointer(Ifx_I2C *i2c)
     {
         return &MODULE_SRC.I2C.I2C[1].ERR;
     }
+#else
+    return &MODULE_SRC.I2C.I2C[0].ERR;
+#endif
 }
 
 
@@ -713,6 +1225,7 @@ IFX_INLINE boolean IfxI2c_getProtocolInterruptSourceStatus(Ifx_I2C *i2c, IfxI2c_
 
 IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getProtocolSrcPointer(Ifx_I2C *i2c)
 {
+#if IFXI2C_NUM_MODULES > 1
     if (i2c == &MODULE_I2C0)
     {
         return &MODULE_SRC.I2C.I2C[0].P;
@@ -721,6 +1234,9 @@ IFX_INLINE volatile Ifx_SRC_SRCR *IfxI2c_getProtocolSrcPointer(Ifx_I2C *i2c)
     {
         return &MODULE_SRC.I2C.I2C[1].P;
     }
+#else
+    return &MODULE_SRC.I2C.I2C[0].P;
+#endif
 }
 
 
@@ -788,6 +1304,12 @@ IFX_INLINE void IfxI2c_waitBusFree(Ifx_I2C *i2c)
 IFX_INLINE void IfxI2c_writeFifo(Ifx_I2C *i2c, uint32 packet)
 {
     i2c->TXD.U = packet;
+}
+
+
+IFX_INLINE void IfxI2c_setInterruptRequest(Ifx_I2C *i2c, IfxI2c_InterruptRequest source)
+{
+    i2c->ISR.U |= (1 << source);
 }
 
 

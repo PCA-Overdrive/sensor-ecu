@@ -7,6 +7,7 @@
 /*********************************************************************************************************************/
 #include "App_Can.h"
 
+#include "Apps/App_HallSensor/App_HallSensor.h"
 #include "Apps/App_Ultrasonic/App_Ultrasonic.h"
 #include "Drivers/Can/McmcanFd.h"
 
@@ -23,7 +24,6 @@
 /*********************************************************************************************************************/
 static boolean g_isInitialized = FALSE;
 static sint16 g_imuYaw = 0;
-static uint8  g_vehicleSpeed = 0U;
 
 /*********************************************************************************************************************/
 /*------------------------------------------------Function Prototypes------------------------------------------------*/
@@ -35,20 +35,20 @@ static void sendUltrasonicDistanceMessage(void);
 /*********************************************************************************************************************/
 static void sendUltrasonicDistanceMessage(void)
 {
-    UltrasonicDistanceCmd_t message;
+    UltrasonicDistanceCmd_t message = {0};
 
-    message.frontDist = g_distances[0];
-    message.frontRightDist = g_distances[1];
-    message.rightFrontDist = g_distances[2];
-    message.rightBehindDist = g_distances[3];
-    message.behindRightDist = g_distances[4];
-    message.behindDist = g_distances[5];
-    message.behindLeftDist = g_distances[6];
-    message.leftBehindDist = g_distances[7];
-    message.leftFrontDist = g_distances[8];
-    message.frontLeftDist = g_distances[9];
+    message.frontDist = g_distancesMm[ULTRASONIC_FC];
+    message.frontRightDist = g_distancesMm[ULTRASONIC_FR];
+    message.rightFrontDist = g_distancesMm[ULTRASONIC_RF];
+    message.rightBehindDist = g_distancesMm[ULTRASONIC_RM];
+    message.behindRightDist = g_distancesMm[ULTRASONIC_RR];
+    message.behindDist = g_distancesMm[ULTRASONIC_BC];
+    message.behindLeftDist = g_distancesMm[ULTRASONIC_RL];
+    message.leftBehindDist = g_distancesMm[ULTRASONIC_LM];
+    message.leftFrontDist = g_distancesMm[ULTRASONIC_LF];
+    message.frontLeftDist = g_distancesMm[ULTRASONIC_FL];
     message.imuYaw = g_imuYaw;
-    message.vehicleSpeed = g_vehicleSpeed;
+    message.vehicleSpeed = g_hallVehicleSpeed;
 
     McmcanFd_SendUltrasonic(&message);
 }
@@ -81,9 +81,4 @@ void CanApp_Run(void *arg)
 void CanApp_SetImuYaw(sint16 imuYaw)
 {
     g_imuYaw = imuYaw;
-}
-
-void CanApp_SetVehicleSpeed(uint8 vehicleSpeed)
-{
-    g_vehicleSpeed = vehicleSpeed;
 }
