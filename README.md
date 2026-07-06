@@ -21,7 +21,7 @@ flowchart TD
     IMU["ICM-20948 IMU"] --> SensorECU
     HALL["Hall Sensor"] --> SensorECU
     SensorECU --> CAN["CAN FD 0x200"]
-    CAN --> JudgeECU["Judgment ECU"]
+    CAN --> ControlECU["Control ECU"]
 ```
 
 ## Hardware
